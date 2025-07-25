@@ -20,9 +20,10 @@ def extract_items_with_prices(lines):
     while i < len(lines):
         line = lines[i].strip()
         line_lower = line.lower()
-
+        print ("line::::::",line)
         if any(bad in line_lower for bad in blacklist):
             i += 1
+            print ("badline::::::",line)
             continue
 
         
@@ -69,5 +70,5 @@ def extract_text_from_bill(image_path):
         print("❌ No items detected.")
 
 if __name__ == "__main__":
-    image_path = "data/receipts/bill2.jpg"  
+    image_path = "data/receipts/bill11.jpg"  
     extract_text_from_bill(image_path)
