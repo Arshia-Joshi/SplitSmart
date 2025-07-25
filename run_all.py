@@ -28,7 +28,7 @@ def extract_text_from_image(image_path):
             print(f"  - {item['DetectedText']} (Confidence: {item['Confidence']:.2f}%)")
 
 def process_all_receipts(folder_path):
-    supported_ext = ('.jpg', '.jpeg', '.png','.webp')
+    supported_ext = ('.jpg', '.jpeg', '.png','webp')
 
     for filename in os.listdir(folder_path):
         if filename.lower().endswith(supported_ext):

@@ -1,9 +1,17 @@
 import boto3
 import os
 import re
+import google.generativeai as genai
 from dotenv import load_dotenv
 
+
 load_dotenv()
+gemi_key=os.getenv("gemini_api_key")
+genai.configure()
+
+# Use Gemini Flash model
+model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+
 
 rekognition = boto3.client(
     'rekognition',
@@ -11,40 +19,6 @@ rekognition = boto3.client(
     aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
     region_name=os.getenv('AWS_REGION')
 )
-
-def extract_items_with_prices(lines):
-    items = []
-    blacklist = ['total', 'gst', 'tax', 'invoice', 'date', 'amount', 'qty', 'rate', 'sub total', 'fssai', 'thank']
-
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-        line_lower = line.lower()
-        print ("line::::::",line)
-        if any(bad in line_lower for bad in blacklist):
-            i += 1
-            print ("badline::::::",line)
-            continue
-
-        
-        if re.search(r'[a-zA-Z]{3,}', line):
-            prices = []
-            for j in range(1, 4):
-                if i + j < len(lines):
-                    possible_price = lines[i + j].strip()
-                    match = re.match(r'^(\d+(?:\.\d{1,2})?)$', possible_price)
-                    if match:
-                        price = float(match.group(1))
-                        if 5 <= price <= 2000:
-                            prices.append(price)
-            if prices:
-                items.append((line, max(prices)))
-                i += j  
-            else:
-                i += 1
-        else:
-            i += 1
-    return items
 
 def extract_text_from_bill(image_path):
     with open(image_path, 'rb') as img_file:
@@ -57,17 +31,14 @@ def extract_text_from_bill(image_path):
     print("\nRaw OCR Text Lines:")
     for item in response['TextDetections']:
         if item['Type'] == 'LINE':
-            print(f"- {item['DetectedText']}")
+            #print(f"- {item['DetectedText']}")
             lines.append(item['DetectedText'])
+    print(" ".join(lines))
+    response = model.generate_content(f"""{" ".join(lines)}\n Extract **only the food items and their final amount even though it is expensive**. Ignore total, taxes,rate and extra info.
+        Return as a list like:
+- Item Name — Price""")
 
-    extracted = extract_items_with_prices(lines)
-
-    print("\nExtracted Items with Prices:")
-    if extracted:
-        for item, price in extracted:
-            print(f"- {item}: ₹{price}")
-    else:
-        print("❌ No items detected.")
+    print(response.text)
 
 if __name__ == "__main__":
     image_path = "data/receipts/bill11.jpg"  
