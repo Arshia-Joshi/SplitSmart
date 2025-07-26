@@ -34,12 +34,12 @@ def extract_text_from_bill(image_path):
             #print(f"- {item['DetectedText']}")
             lines.append(item['DetectedText'])
     print(" ".join(lines))
-    response = model.generate_content(f"""{" ".join(lines)}\n Extract **only the food items and their final amount even though it is expensive**. Ignore total, taxes,rate and extra info.
+    response = model.generate_content(f"""{" ".join(lines)}\n Extract **only the food items ,their respective final amount even though it is expensive, below that display all the taxes that have been applied, sub Total and Total amount or bill amount or net amount as given in the bill**. Ignore extra info.
         Return as a list like:
 - Item Name — Price""")
 
     print(response.text)
 
 if __name__ == "__main__":
-    image_path = "data/receipts/bill11.jpg"  
+    image_path = "data/receipts/bill6.jpg"  
     extract_text_from_bill(image_path)
