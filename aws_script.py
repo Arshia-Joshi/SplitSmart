@@ -1,18 +1,16 @@
 import boto3
 import os
-import re
-import google.generativeai as genai
 from dotenv import load_dotenv
-
+from vertexai.language_models import TextGenerationModel
+import vertexai
 
 load_dotenv()
-gemi_key=os.getenv("gemini_api_key")
-genai.configure()
 
-# Use Gemini Flash model
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+# Init Vertex AI
+vertexai.init(project=os.getenv("GOOGLE_PROJECT_ID"), location=os.getenv("GOOGLE_LOCATION"))
+model = TextGenerationModel.from_pretrained("text-bison")
 
-
+# Init AWS Rekognition
 rekognition = boto3.client(
     'rekognition',
     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
@@ -27,19 +25,37 @@ def extract_text_from_bill(image_path):
     response = rekognition.detect_text(Image={'Bytes': img_bytes})
 
     lines = []
-    print(f"\nFile: {image_path}")
-    print("\nRaw OCR Text Lines:")
     for item in response['TextDetections']:
         if item['Type'] == 'LINE':
-            #print(f"- {item['DetectedText']}")
             lines.append(item['DetectedText'])
-    print(" ".join(lines))
-    response = model.generate_content(f"""{" ".join(lines)}\n Extract **only the food items ,their respective final amount even though it is expensive, below that display all the taxes that have been applied, sub Total and Total amount or bill amount or net amount as given in the bill**. Ignore extra info.
-        Return as a list like:
-- Item Name — Price""")
 
-    print(response.text)
+    prompt = f"""
+You are given raw OCR text from a restaurant bill. Your task is to extract structured billing information.
+
+OCR Text:
+{" ".join(lines)}
+
+Extract the following from this bill:
+1. All food items with their final price. Ignore rate/qty/unit prices.
+2. All tax details such as SGST, CGST, VAT, Service Tax, service charges etc., along with their percentages if available and total amounts.
+3. Subtotal or Gross Total (as labeled in the bill).
+4. Final bill total (as labeled: Net Amount / Total / Bill Amount).
+Do not calculate the total at the end yourself, extract what is given only.
+Output format (strict):
+- FLAVOURED MOJITO — ₹330.00
+...
+- SGST 2.5% — ₹32.00
+...
+- Sub Total — ₹2580.00
+- Total — ₹3280.00
+
+If any value is missing, skip it.
+"""
+
+    llm_response = model.predict(prompt, temperature=0.2, max_output_tokens=1024)
+    return llm_response.text
 
 if __name__ == "__main__":
-    image_path = "data/receipts/bill6.jpg"  
-    extract_text_from_bill(image_path)
+    image_path = "data/receipts/bill6.jpg"
+    output = extract_text_from_bill(image_path)
+    print(output)

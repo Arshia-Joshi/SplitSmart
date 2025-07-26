@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BillSplitter | Smart Bill Sharing</title>
+  <link rel="stylesheet" href="style.css">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;700&family=Playfair+Display:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+  <div class="background">
+    <div class="gradient-circle circle-1"></div>
+    <div class="gradient-circle circle-2"></div>
+    <div class="gradient-circle circle-3"></div>
+  </div>
+  
+  <div class="container">
+    <header>
+      <div class="logo">
+        <div class="logo-icon">
+          <i class="fas fa-receipt"></i>
+        </div>
+        <h1>Bill<span>Splitter</span></h1>
+      </div>
+      <p class="tagline">Where friends divide bills, not friendships</p>
+    </header>
+
+    <main>
+      <div class="glass-card">
+        <div class="card-header">
+          <h2><i class="fas fa-cloud-upload-alt"></i> Upload Bill</h2>
+          <div class="drag-hint">or drag & drop</div>
+        </div>
+        
+        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+          <div class="file-input-wrapper">
+            <label for="bill-upload" class="file-label">
+              <div class="upload-icon">
+                <i class="fas fa-file-invoice-dollar"></i>
+                <div class="pulse-effect"></div>
+              </div>
+              <span class="file-instructions">Select image or PDF of your bill</span>
+              <span class="file-requirements">Supports JPG, PNG, PDF (Max 10MB)</span>
+              <input type="file" id="bill-upload" name="bill" required accept="image/*,.pdf" />
+            </label>
+          </div>
+          
+          <button type="submit" class="upload-button">
+            <span>Process & Split</span>
+            <i class="fas fa-arrow-right"></i>
+          </button>
+        </form>
+        
+        <div class="divider">
+          <span>Features</span>
+        </div>
+        
+        <div class="features">
+          <div class="feature">
+            <div class="feature-icon">
+              <i class="fas fa-magic"></i>
+            </div>
+            <h3>Smart Detection</h3>
+            <p>Automatically reads items and amounts</p>
+          </div>
+          
+          <div class="feature">
+            <div class="feature-icon">
+              <i class="fas fa-user-friends"></i>
+            </div>
+            <h3>Easy Splitting</h3>
+            <p>Assign items to friends in one click</p>
+          </div>
+          
+          <div class="feature">
+            <div class="feature-icon">
+              <i class="fas fa-share-alt"></i>
+            </div>
+            <h3>Instant Sharing</h3>
+            <p>Send splits via text or email</p>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer>
+      <div class="social-links">
+        <a href="#"><i class="fab fa-twitter"></i></a>
+        <a href="#"><i class="fab fa-instagram"></i></a>
+        <a href="#"><i class="fab fa-tiktok"></i></a>
+      </div>
+      <p>© 2023 BillSplitter | Made with <i class="fas fa-heart"></i> for foodies & friends</p>
+    </footer>
+  </div>
+</body>
+</html>
