@@ -1,16 +1,16 @@
 import boto3
 import os
 from dotenv import load_dotenv
-from vertexai.language_models import TextGenerationModel
-import vertexai
+import google.generativeai as genai
+
 
 load_dotenv()
 
-# Init Vertex AI
-vertexai.init(project=os.getenv("GOOGLE_PROJECT_ID"), location=os.getenv("GOOGLE_LOCATION"))
-model = TextGenerationModel.from_pretrained("text-bison")
 
-# Init AWS Rekognition
+genai.configure(api_key=os.getenv("gemini_api_key"))
+model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+
+
 rekognition = boto3.client(
     'rekognition',
     aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
@@ -19,9 +19,11 @@ rekognition = boto3.client(
 )
 
 def extract_text_from_bill(image_path):
+    
     with open(image_path, 'rb') as img_file:
         img_bytes = img_file.read()
 
+    
     response = rekognition.detect_text(Image={'Bytes': img_bytes})
 
     lines = []
@@ -29,6 +31,7 @@ def extract_text_from_bill(image_path):
         if item['Type'] == 'LINE':
             lines.append(item['DetectedText'])
 
+    
     prompt = f"""
 You are given raw OCR text from a restaurant bill. Your task is to extract structured billing information.
 
@@ -41,19 +44,13 @@ Extract the following from this bill:
 3. Subtotal or Gross Total (as labeled in the bill).
 4. Final bill total (as labeled: Net Amount / Total / Bill Amount).
 Do not calculate the total at the end yourself, extract what is given only.
-Output format (strict):
-- FLAVOURED MOJITO — ₹330.00
-...
-- SGST 2.5% — ₹32.00
-...
-- Sub Total — ₹2580.00
-- Total — ₹3280.00
 
-If any value is missing, skip it.
 """
 
-    llm_response = model.predict(prompt, temperature=0.2, max_output_tokens=1024)
+ 
+    llm_response = model.generate_content(prompt)
     return llm_response.text
+
 
 if __name__ == "__main__":
     image_path = "data/receipts/bill6.jpg"
