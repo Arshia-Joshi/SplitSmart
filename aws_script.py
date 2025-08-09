@@ -2,19 +2,12 @@ import boto3
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-import json # <--- Make sure this is imported
+import json
+import re
 
 load_dotenv()
 
-# IMPORTANT: Ensure your .env file is correctly formatted:
-# Example:
-# GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE_NO_SPACES
-# AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID_NO_SPACES
-# AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY_NO_SPACES
-# AWS_REGION=ap-south-1
-# No spaces around '=', no comments on the same line as key-value pairs.
-
-genai.configure(api_key=os.getenv("GEMINI_API_KEY")) # Use GEMINI_API_KEY for consistency
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 rekognition = boto3.client(
@@ -41,27 +34,26 @@ You are given raw OCR text from a restaurant bill. Your task is to extract struc
 OCR Text:
 {" ".join(lines)}
 
-Extract the following from this bill:
-1.  A "restaurant_name" (string, e.g., "The Grand Cafe"). If not found, use "Unknown Restaurant".
-2.  An "items" array, where each object has:
-    * "name" (string, the food item's description)
-    * "price" (float, the final price of the item). Ignore rate/qty/unit prices.
-3.  A "taxes" array, where each object has:
-    * "type" (string, e.g., "SGST", "Service Charge", "VAT")
-    * "amount" (float, the total amount for that tax)
-    * "percentage" (float, optional, the percentage if available, e.g., 5.0 for 5%). If not available, use null.
-4.  A "subtotal" (float, the subtotal or gross total as labeled in the bill). If not found, use null.
-5.  A "total" (float, the final bill total (as labeled: Net Amount / Total / Bill Amount) after all taxes and charges). If not found, use null.
+Extract the following:
+1. "restaurant_name" (string). If not found, use "Unknown Restaurant".
+2. "items" (array), where each object has:
+    * "name" (string)
+    * "price" (float, final price of that item)
+    * "eaten_by" (array of strings, names of people who ate the item; if unknown, use [])
+3. "taxes" (array), where each object has:
+    * "type" (string)
+    * "amount" (float)
+    * "percentage" (float or null)
+4. "subtotal" (float or null)
+5. "total" (float or null)
 
-Do not calculate any totals yourself; extract only the values explicitly given in the bill.
 If a category is not found, use an empty array for lists or null for single values.
-
-Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (```json). Just provide the raw JSON object.** Example format:
+Ensure output is valid JSON, without markdown code fences. Example:
 {{
-    "restaurant_name": "Example Restaurant",
+    "restaurant_name": "Example Cafe",
     "items": [
-        {{ "name": "Burger", "price": 12.50 }},
-        {{ "name": "Fries", "price": 4.00 }}
+        {{ "name": "Burger", "price": 12.50, "eaten_by": ["Alice", "Bob"] }},
+        {{ "name": "Fries", "price": 4.00, "eaten_by": [] }}
     ],
     "taxes": [
         {{ "type": "SGST", "amount": 1.20, "percentage": 6.0 }},
@@ -73,25 +65,37 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
 """
 
     llm_response = model.generate_content(prompt)
-    raw_response_text = llm_response.text
+    raw_response_text = llm_response.text.strip()
 
-    # --- Strip markdown code block wrappers ---
-    if raw_response_text.startswith("```json") and raw_response_text.endswith("```"):
-        json_string = raw_response_text[len("```json"):-len("```")].strip()
-    else:
-        json_string = raw_response_text.strip()
+    # Use a regex to find the first JSON object in the string
+    match = re.search(r'\{.*\}', raw_response_text, re.DOTALL)
     
+    if match:
+        json_string = match.group(0)
+    else:
+        print("Error: No JSON object found in Gemini's response.")
+        print(f"Gemini raw response: {raw_response_text}")
+        return {
+            'restaurant_name': 'Extraction Error',
+            'items': [],
+            'taxes': [],
+            'subtotal': None,
+            'total': None
+        }
+
     try:
-        parsed_data = json.loads(json_string) # Use json_string here
-        
-        # --- Post-processing to ensure numbers are floats ---
+        parsed_data = json.loads(json_string)
+
+        # Type conversion and validation (your original code already did this well)
         if 'items' in parsed_data and isinstance(parsed_data['items'], list):
             for item in parsed_data['items']:
                 if 'price' in item:
                     try:
                         item['price'] = float(item['price'])
                     except (ValueError, TypeError):
-                        item['price'] = 0.0 # Default to 0 if conversion fails
+                        item['price'] = 0.0
+                if 'eaten_by' not in item or not isinstance(item['eaten_by'], list):
+                    item['eaten_by'] = []
 
         if 'taxes' in parsed_data and isinstance(parsed_data['taxes'], list):
             for tax in parsed_data['taxes']:
@@ -112,12 +116,21 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
                     parsed_data[key] = float(parsed_data[key])
                 except (ValueError, TypeError):
                     parsed_data[key] = None
-        # --- END Post-processing ---
-        
+
         return parsed_data
+
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON from Gemini: {e}")
-        print(f"Gemini raw response: {raw_response_text}") # Print raw text for debugging
+        print(f"Gemini raw response: {raw_response_text}")
+        return {
+            'restaurant_name': 'Extraction Error',
+            'items': [],
+            'taxes': [],
+            'subtotal': None,
+            'total': None
+        }
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
         return {
             'restaurant_name': 'Extraction Error',
             'items': [],
@@ -126,8 +139,7 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
             'total': None
         }
 
-
 if __name__ == "__main__":
-    image_path = "data/receipts/bill1.jpg" # Ensure this path is correct for testing
-    output = extract_text_from_bill(image_path)
-    print(json.dumps(output, indent=4)) # Print as pretty JSON for testing
+    test_image = "data/receipts/bill1.jpg"
+    output = extract_text_from_bill(test_image)
+    print(json.dumps(output, indent=4))

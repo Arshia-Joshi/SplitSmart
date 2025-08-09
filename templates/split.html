@@ -18,76 +18,86 @@
                     </div>
                     <div class="card-body">
                         <div class="row">
+                            <!-- Receipt image -->
                             <div class="col-md-6">
                                 <img src="/static/{{ image_url }}" class="img-fluid rounded" alt="Receipt">
                             </div>
+
+                            <!-- Split form -->
                             <div class="col-md-6">
                                 <form id="splitForm" method="POST" action="/calculate">
+                                    <!-- Hidden totals for backend -->
                                     <input type="hidden" name="hidden_subtotal" value="{{ subtotal if subtotal is not none else 0 }}">
                                     <input type="hidden" name="hidden_total" value="{{ total if total is not none else 0 }}">
-                                    <input type="hidden" name="hidden_taxes" value="{{ taxes | tojson }}"> 
-                                    
+                                    <input type="hidden" name="hidden_taxes" value="{{ taxes | tojson }}">
+
+                                    <!-- Number of people -->
                                     <div class="mb-4">
                                         <label for="peopleCount" class="form-label">How many people to split between?</label>
                                         <input type="number" class="form-control" id="peopleCount" name="peopleCount" min="1" max="10" value="2" required>
                                     </div>
-                                    
+
+                                    <!-- Dynamic people section -->
                                     <div id="peopleContainer">
-                                        </div>
-                                    
+                                        <!-- Populated by JS: will include name + phone fields -->
+                                    </div>
+
+                                    <!-- Item selection -->
                                     <div class="mt-4">
                                         <h5>Items:</h5>
                                         <div id="itemsList" class="list-group">
                                             {% for item in items %}
                                             <div class="list-group-item item-container" data-item-index="{{ loop.index0 }}">
                                                 <div class="d-flex justify-content-between align-items-center">
-                                                    <span>{{ item.name }} - ${{ "%.2f"|format(item.price) }}</span>
+                                                    <span>{{ item.name }} - Rs{{ "%.2f"|format(item.price) }}</span>
                                                     <input type="hidden" name="item_{{ loop.index0 }}_name" value="{{ item.name }}">
                                                     <input type="hidden" name="item_{{ loop.index0 }}_price" value="{{ item.price }}">
-                                                    
                                                     <input type="checkbox" class="form-check-input item-checkbox">
                                                 </div>
-                                                <div class="people-checkboxes mt-2" style="display: none;">
-                                                    </div>
-                                                </div>
-                                                {% endfor %}
+                                                <div class="people-checkboxes mt-2" style="display: none;"></div>
                                             </div>
+                                            {% endfor %}
                                         </div>
+                                    </div>
 
-                                        <div class="mt-4 bill-summary">
-                                            <h5>Bill Summary:</h5>
-                                            <ul class="list-group list-group-flush">
-                                                {% if subtotal is not none %}
-                                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    Subtotal: <span>${{ "%.2f"|format(subtotal) }}</span>
-                                                </li>
-                                                {% endif %}
-                                                {% for tax in taxes %}
-                                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    {{ tax.type }}: <span>${{ "%.2f"|format(tax.amount) }} {% if tax.percentage is not none %}({{ tax.percentage }}%) {% endif %}</span>
-                                                </li>
-                                                {% endfor %}
-                                                {% if total is not none %}
-                                                <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                                                    Total Bill: <span>${{ "%.2f"|format(total) }}</span>
-                                                </li>
-                                                {% endif %}
-                                            </ul>
-                                        </div>
-                                        
-                                        <div class="d-grid mt-4">
-                                            <button type="submit" class="btn btn-split">
-                                                <i class="fas fa-calculator me-2"></i> Calculate Shares
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
+                                    <!-- Bill summary -->
+                                    <div class="mt-4 bill-summary">
+                                        <h5>Bill Summary:</h5>
+                                        <ul class="list-group list-group-flush">
+                                            {% if subtotal is not none %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                Subtotal: <span>Rs{{ "%.2f"|format(subtotal) }}</span>
+                                            </li>
+                                            {% endif %}
+                                            {% for tax in taxes %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ tax.type }}: 
+                                                <span>Rs{{ "%.2f"|format(tax.amount) }} {% if tax.percentage is not none %}({{ tax.percentage }}%) {% endif %}</span>
+                                            </li>
+                                            {% endfor %}
+                                            {% if total is not none %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+                                                Total Bill: <span>Rs{{ "%.2f"|format(total) }}</span>
+                                            </li>
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+
+                                    <!-- Submit button -->
+                                    <div class="d-grid mt-4">
+                                        <button type="submit" class="btn btn-split">
+                                            <i class="fas fa-calculator me-2"></i> Calculate & Send WhatsApp
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
+                            <!-- End split form -->
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='javasplit.js') }}"></script>
