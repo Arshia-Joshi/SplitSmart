@@ -48,6 +48,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     <span class="person-total fw-bold"></span> </div>
                 <input type="text" class="form-control mb-2" 
                         placeholder="Name (optional)" name="person_${i}_name" id="person_${i}_name">
+                <input type="tel" class="form-control mb-2" 
+                        placeholder="Number (optional)" name="number_${i}_number" id="person_${i}_number">
                 <div class="person-items" data-person-id="${i}">
                     </div>
             `;
