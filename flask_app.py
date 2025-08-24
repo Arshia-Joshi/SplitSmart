@@ -1,15 +1,17 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for,jsonify, session
 import os
 from werkzeug.utils import secure_filename
 from aws_script import extract_text_from_bill
-import json # <--- THIS LINE IS CRITICAL FOR JSON OPERATIONS
+import json
 
 # It seems your flask app file is named flask_app.py, adjust this if it's app.py
-app = Flask(__name__) # Use __name__ for Flask app creation
+app = Flask(__name__)
+
+# To use sessions, a secret key is required
+app.secret_key = 'your_super_secret_key' # CHANGE THIS IN PRODUCTION
 
 UPLOAD_FOLDER = 'static/uploads'
-# Removed PDF for now, as it needs special handling (image conversion)
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'} 
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -20,7 +22,6 @@ def allowed_file(filename):
 
 @app.route('/')
 def home():
-    # Make sure index.html links to a file input named 'bill'
     return render_template('index.html')
 
 @app.route('/upload', methods=['POST'])
@@ -41,10 +42,8 @@ def upload_file():
         try:
             extracted_data = extract_text_from_bill(filepath)
             
-            # Ensure extracted_data is a dict as expected from aws_script.py
             if not isinstance(extracted_data, dict):
                 print(f"Warning: extract_text_from_bill did not return a dict. Type: {type(extracted_data)}")
-                # Fallback to a structured, but empty/default dictionary
                 extracted_data = {
                     'restaurant_name': 'Extraction Failed',
                     'items': [],
@@ -53,128 +52,98 @@ def upload_file():
                     'total': None
                 }
             
-            # Print extracted data for debugging
-            print("--- Extracted Data for split.html ---")
-            print(json.dumps(extracted_data, indent=4))
-            print("-------------------------------------")
+            #print("--- Extracted Data for split.html ---")
+           # print(json.dumps(extracted_data, indent=4))
+           # print("-------------------------------------")
 
-            # Pass all extracted data to the template
             return render_template('split.html',
                                    restaurant=extracted_data.get('restaurant_name', 'Restaurant'),
                                    items=extracted_data.get('items', []),
                                    taxes=extracted_data.get('taxes', []),
                                    subtotal=extracted_data.get('subtotal'),
                                    total=extracted_data.get('total'),
-                                   image_url=f'uploads/{filename}') # Passed for display on split.html
+                                   image_url=f'uploads/{filename}')
             
         except Exception as e:
             if os.path.exists(filepath):
                 os.remove(filepath)
-            print(f"Error processing file in Flask: {str(e)}") # Log the error for debugging
+            print(f"Error processing file in Flask: {str(e)}")
             return f"Error processing file: {str(e)}", 500
     
     return "Invalid file type. Allowed: PNG, JPG, JPEG, WEBP", 400
 
-# ... (rest of the imports and app setup) ...
-
-# ... (rest of app.py code) ...
+# The /submit route is no longer needed since we're using /calculate directly.
+# I've removed it for cleaner code.
 
 @app.route('/calculate', methods=['POST'])
 def calculate_shares():
-    # Keep the `try` and `except Exception as e:` block commented out for now,
-    # so we keep getting full tracebacks if other errors pop up.
-    
-    # Get count of people from the form
-    people_count = int(request.form.get('peopleCount', 2))
-    
-    people = []
-    for i in range(1, people_count + 1):
-        name = request.form.get(f'person_{i}_name', f'Person {i}')
-        people.append({
-            'name': name,
-            'items': [], # Correctly initialized as an empty list
-            'total': 0.0
-        })
-    
-    # --- Retrieve all original item data passed from hidden inputs in split.html ---
-    all_items_data = {}
-    item_index = 0
-    while True:
-        item_name_key = f'item_{item_index}_name'
-        item_price_key = f'item_{item_index}_price'
-        
-        item_name = request.form.get(item_name_key)
-        item_price_str = request.form.get(item_price_key)
-
-        if item_name is None: # No more items with this index
-            break
-        
-        try:
-            item_price = float(item_price_str)
-        except (ValueError, TypeError):
-            item_price = 0.0 
-        
-        all_items_data[item_index] = {'name': item_name, 'price': item_price}
-        item_index += 1
-
-    # --- Retrieve taxes and totals from hidden inputs ---
-    subtotal = float(request.form.get('hidden_subtotal', 0.0))
-    total = float(request.form.get('hidden_total', 0.0))
-    
-    taxes_json = request.form.get('hidden_taxes', '[]')
     try:
-        taxes = json.loads(taxes_json)
-    except json.JSONDecodeError:
-        taxes = [] # Fallback if JSON is malformed
+        data = request.get_json()
+        print(data)
+        people_count = data.get('peopleCount', 0)
+        people_data = data.get('people', [])
+        bill_items = data.get('items', [])
+        person_items_allocation = data.get('personItems', {})
 
-    # --- Assign items to people based on checked checkboxes ---
-    for person_idx_one_based in range(1, people_count + 1):
-        for item_idx in range(len(all_items_data)): # Iterate through all potential items
-            checkbox_name = f'person_{person_idx_one_based}_item_{item_idx}'
+        people = []
+        for person_info in people_data:
+            person_id = str(person_info.get('person_id'))
+            person_total = 0.0
+            person_items = []
             
-            if request.form.get(checkbox_name) == 'on': 
-                item = all_items_data.get(item_idx)
-                if item: 
-                    people[person_idx_one_based - 1]['items'].append({
-                        'name': item['name'],
-                        'price': item['price']
-                    })
-                    people[person_idx_one_based - 1]['total'] += item['price']
-    
-    # --- Calculate individual shares including taxes and remaining total ---
-    items_total_assigned = sum(p['total'] for p in people)
-    remaining_total = total - items_total_assigned
-    
-    if people_count > 0:
-        share_of_remaining = remaining_total / people_count
-        for person in people:
-            person['total'] += share_of_remaining
-            person['formatted_total'] = "{:.2f}".format(person['total'])
-    else:
-        for person in people:
-            person['formatted_total'] = "{:.2f}".format(person['total'])
+            if person_id in person_items_allocation:
+                allocated_item_names = person_items_allocation[person_id]
+                for item_name in allocated_item_names:
+                    item_found = next((item for item in bill_items if item.get('name') == item_name), None)
+                    if item_found:
+                        person_items.append(item_found)
+                        person_total += item_found.get('price', 0.0)
+            
+            people.append({
+                'name': person_info.get('name', f'Person {person_id}'),
+                'items': person_items,
+                'total': person_total
+            })
 
-    grand_total_calculated = sum(person['total'] for person in people)
+        edited_total = sum(item.get('price', 0.0) for item in bill_items)
+        items_total_assigned = sum(p['total'] for p in people)
+        remaining_total = edited_total - items_total_assigned
+        
+        if people_count > 0:
+            share_of_remaining = remaining_total / people_count
+            for person in people:
+                person['total'] += share_of_remaining
+                person['formatted_total'] = "{:.2f}".format(person['total'])
+        else:
+            for person in people:
+                person['formatted_total'] = "{:.2f}".format(person['total'])
 
-    # --- ADD THIS DEBUGGING LOOP AND CHECK RIGHT BEFORE RENDER_TEMPLATE ---
-    print("\n--- Debugging 'people' data before rendering results.html ---")
-    for idx, person_data in enumerate(people):
-        print(f"Person {idx+1} Name: {person_data['name']}")
-        print(f"  Type of person_data['items']: {type(person_data['items'])}")
-        print(f"  Content of person_data['items']: {person_data['items']}")
-        # This will convert it to a list if it somehow wasn't (shouldn't happen with current logic)
-        if not isinstance(person_data['items'], list):
-            print(f"  WARNING: person_data['items'] for '{person_data['name']}' was NOT a list! Forcing to empty list.")
-            person_data['items'] = [] # Safely convert to an empty list to prevent template error
-    print("--- End Debugging 'people' data ---")
-    # --- END ADDITION ---
+        grand_total_calculated = sum(person['total'] for person in people)
+        #print(f"people_count: {people_count}\n people_data:{people_data}\n bill_items:  {bill_items}\n person_items_allocation: {person_items_allocation} grand_total_calculated: {grand_total_calculated} ")
+        # Store the calculated data in the session
+        session['results'] = {
+            'people': people,
+            'grand_total': "{:.2f}".format(grand_total_calculated),
+            'original_total': "{:.2f}".format(edited_total)
+        }
+       # return render_template('results.html',results=session['results'])
+        return redirect(url_for('show_results'))
+        # Return a success JSON response to the JavaScript
+       # return jsonify({'status': 'success', 'message': 'Calculations complete.'})
+
+    except Exception as e:
+        print(f"Error in /calculate route: {e}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/results')
+def show_results():
+    # Retrieve the results from the session
+    results = session.get('results', None)
     
-    return render_template('results.html',
-                           people=people,
-                           grand_total="{:.2f}".format(grand_total_calculated),
-                           original_total="{:.2f}".format(total))
-    
-    # Original `except Exception as e:` block is still commented out.
+    if results is None:
+        return redirect(url_for('home')) # Redirect if no data is found
+
+    return render_template('results.html', **results) # Pass data to the template
+
 if __name__ == '__main__':
-    # Use 'flask_app' if your file is named flask_app.py, otherwise it's '__main__' or your file name without .py
     app.run(host='0.0.0.0', port=5000, debug=True)

@@ -2,9 +2,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-import json # <--- Make sure this is imported
-
-load_dotenv()
+import json
 
 # IMPORTANT: Ensure your .env file is correctly formatted:
 # Example:
@@ -12,9 +10,10 @@ load_dotenv()
 # AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID_NO_SPACES
 # AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY_NO_SPACES
 # AWS_REGION=ap-south-1
-# No spaces around '=', no comments on the same line as key-value pairs.
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY")) # Use GEMINI_API_KEY for consistency
+load_dotenv()
+
+genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
 
 rekognition = boto3.client(
@@ -56,7 +55,7 @@ Extract the following from this bill:
 Do not calculate any totals yourself; extract only the values explicitly given in the bill.
 If a category is not found, use an empty array for lists or null for single values.
 
-Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (```json). Just provide the raw JSON object.** Example format:
+Ensure the output is valid JSON. DO NOT wrap the JSON in markdown backticks (```json). Just provide the raw JSON object. Example format:
 {{
     "restaurant_name": "Example Restaurant",
     "items": [
@@ -82,7 +81,7 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
         json_string = raw_response_text.strip()
     
     try:
-        parsed_data = json.loads(json_string) # Use json_string here
+        parsed_data = json.loads(json_string)
         
         # --- Post-processing to ensure numbers are floats ---
         if 'items' in parsed_data and isinstance(parsed_data['items'], list):
@@ -91,7 +90,7 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
                     try:
                         item['price'] = float(item['price'])
                     except (ValueError, TypeError):
-                        item['price'] = 0.0 # Default to 0 if conversion fails
+                        item['price'] = 0.0
 
         if 'taxes' in parsed_data and isinstance(parsed_data['taxes'], list):
             for tax in parsed_data['taxes']:
@@ -112,12 +111,17 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
                     parsed_data[key] = float(parsed_data[key])
                 except (ValueError, TypeError):
                     parsed_data[key] = None
-        # --- END Post-processing ---
-        
+        # --- END Post-processing for floats ---
+
+        # --- NEW STEP: Apply post-processing for duplicates ---
+        if 'items' in parsed_data and isinstance(parsed_data['items'], list):
+            parsed_data['items'] = post_process_items(parsed_data['items'])
+        # --- END NEW STEP ---
+
         return parsed_data
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON from Gemini: {e}")
-        print(f"Gemini raw response: {raw_response_text}") # Print raw text for debugging
+        print(f"Gemini raw response: {raw_response_text}")
         return {
             'restaurant_name': 'Extraction Error',
             'items': [],
@@ -126,8 +130,38 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
             'total': None
         }
 
+def post_process_items(items):
+    """
+    Removes likely duplicate items by prioritizing longer, more descriptive names.
+    For example, it keeps "Classic Margherita Pizza" and discards a redundant "Pizza" entry.
+    """
+    # Create a dictionary to store items, using a simple name as the key
+    processed_items = {}
+    
+    # Sort items by name length (longest first) to ensure we process the most descriptive names first
+    sorted_items = sorted(items, key=lambda x: len(x.get('name', '')), reverse=True)
+    
+    for item in sorted_items:
+        name = item.get('name', '').strip().lower()
+        if not name:
+            continue
+
+        # Check if the simplified name is already a substring of a more descriptive name we've already stored
+        is_redundant = False
+        for key in processed_items.keys():
+            if name in key:
+                is_redundant = True
+                break
+        
+        # If it's not a redundant entry, add it to our processed list
+        if not is_redundant:
+            processed_items[name] = item
+
+    # Return the values from the dictionary, which are the unique, most descriptive items
+    return list(processed_items.values())
+
 
 if __name__ == "__main__":
-    image_path = "data/receipts/bill1.jpg" # Ensure this path is correct for testing
+    image_path = "data/receipts/bill1.jpg"
     output = extract_text_from_bill(image_path)
-    print(json.dumps(output, indent=4)) # Print as pretty JSON for testing
+    print(json.dumps(output, indent=4))
