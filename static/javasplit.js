@@ -44,11 +44,11 @@ document.addEventListener('DOMContentLoaded', function() {
             personDiv.className = 'person-card mb-3'; // Added mb-3 for spacing
             personDiv.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <h5><i class="fas fa-user me-2"></i> Person ${i}</h5>
+                    <h5><i class="fas fa-user me-2"></i> Person Rs{i}</h5>
                     <span class="person-total fw-bold"></span> </div>
                 <input type="text" class="form-control mb-2" 
-                        placeholder="Name (optional)" name="person_${i}_name" id="person_${i}_name">
-                <div class="person-items" data-person-id="${i}">
+                        placeholder="Name (optional)" name="person_Rs{i}_name" id="person_Rs{i}_name">
+                <div class="person-items" data-person-id="Rs{i}">
                     </div>
             `;
             peopleContainer.appendChild(personDiv);
@@ -67,16 +67,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Get the item's unique index from the data attribute
             const itemIndex = itemContainer.dataset.itemIndex; 
-            const itemPrice = parseFloat(itemContainer.querySelector(`input[name="item_${itemIndex}_price"]`).value);
+            const itemPrice = parseFloat(itemContainer.querySelector(`input[name="item_Rs{itemIndex}_price"]`).value);
 
             for (let i = 1; i <= personCount; i++) {
                 const checkboxDiv = document.createElement('div');
                 checkboxDiv.className = 'form-check form-check-inline';
                 checkboxDiv.innerHTML = `
                     <input class="form-check-input person-item-checkbox" type="checkbox" 
-                           name="person_${i}_item_${itemIndex}" value="on" 
-                           data-person-id="${i}" data-item-price="${itemPrice}" data-item-index="${itemIndex}">
-                    <label class="form-check-label" for="person_${i}_item_${itemIndex}">Person ${i}</label>
+                           name="person_Rs{i}_item_Rs{itemIndex}" value="on" 
+                           data-person-id="Rs{i}" data-item-price="Rs{itemPrice}" data-item-index="Rs{itemIndex}">
+                    <label class="form-check-label" for="person_Rs{i}_item_Rs{itemIndex}">Person Rs{i}</label>
                 `;
                 checkboxesContainer.appendChild(checkboxDiv);
             }
@@ -104,11 +104,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         
         for (let i = 1; i <= peopleCount; i++) {
-            const personCard = peopleContainer.querySelector(`.person-card:nth-child(${i})`);
+            const personCard = peopleContainer.querySelector(`.person-card:nth-child(Rs{i})`);
             if (personCard) {
                 const totalSpan = personCard.querySelector('.person-total');
                 if (totalSpan) {
-                    totalSpan.textContent = `$${peopleTotals[i].toFixed(2)}`;
+                    totalSpan.textContent = `RsRs{peopleTotals[i].toFixed(2)}`;
                 }
             }
         }

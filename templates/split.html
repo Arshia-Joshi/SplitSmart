@@ -41,17 +41,30 @@
                                             {% for item in items %}
                                             <div class="list-group-item item-container" data-item-index="{{ loop.index0 }}">
                                                 <div class="d-flex justify-content-between align-items-center">
-                                                    <span>{{ item.name }} - ${{ "%.2f"|format(item.price) }}</span>
-                                                    <input type="hidden" name="item_{{ loop.index0 }}_name" value="{{ item.name }}">
-                                                    <input type="hidden" name="item_{{ loop.index0 }}_price" value="{{ item.price }}">
-                                                    
-                                                    <input type="checkbox" class="form-check-input item-checkbox">
-                                                </div>
-                                                <div class="people-checkboxes mt-2" style="display: none;">
+                                                    <span>{{ item.name }}</span>
+
+                                                    <!-- Editable price input -->
+                                                    <div class="input-group input-group-sm" style="width: 150px;">
+                                                        <span class="input-group-text">Rs</span>
+                                                        <input type="number" 
+                                                            step="0.01" 
+                                                            class="form-control"
+                                                            name="item_{{ loop.index0 }}_price" 
+                                                            value="{{ "%.2f"|format(item.price) }}">
                                                     </div>
+
+                                                    <!-- Hidden name field -->
+                                                    <input type="hidden" name="item_{{ loop.index0 }}_name" value="{{ item.name }}">
+
+                                                    <!-- Checkbox -->
+                                                    <input type="checkbox" class="form-check-input item-checkbox ms-2">
                                                 </div>
-                                                {% endfor %}
+
+                                                <div class="people-checkboxes mt-2" style="display: none;"></div>
                                             </div>
+                                        {% endfor %}
+                                    </div>
+
                                         </div>
 
                                         <div class="mt-4 bill-summary">
@@ -59,17 +72,17 @@
                                             <ul class="list-group list-group-flush">
                                                 {% if subtotal is not none %}
                                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    Subtotal: <span>${{ "%.2f"|format(subtotal) }}</span>
+                                                    Subtotal: <span>Rs{{ "%.2f"|format(subtotal) }}</span>
                                                 </li>
                                                 {% endif %}
                                                 {% for tax in taxes %}
                                                 <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                    {{ tax.type }}: <span>${{ "%.2f"|format(tax.amount) }} {% if tax.percentage is not none %}({{ tax.percentage }}%) {% endif %}</span>
+                                                    {{ tax.type }}: <span>Rs{{ "%.2f"|format(tax.amount) }} {% if tax.percentage is not none %}({{ tax.percentage }}%) {% endif %}</span>
                                                 </li>
                                                 {% endfor %}
                                                 {% if total is not none %}
                                                 <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                                                    Total Bill: <span>${{ "%.2f"|format(total) }}</span>
+                                                    Total Bill: <span>Rs{{ "%.2f"|format(total) }}</span>
                                                 </li>
                                                 {% endif %}
                                             </ul>
