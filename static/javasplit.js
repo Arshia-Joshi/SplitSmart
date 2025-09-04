@@ -56,52 +56,60 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function updateItemCheckboxes(personCount) {
-        document.querySelectorAll('.item-container').forEach((itemContainer) => {
-            const checkboxesContainer = itemContainer.querySelector('.people-checkboxes');
-            checkboxesContainer.innerHTML = '';
+    document.querySelectorAll('.item-container').forEach((itemContainer) => {
+        const checkboxesContainer = itemContainer.querySelector('.people-checkboxes');
+        checkboxesContainer.innerHTML = '';
 
-            const itemIndex = itemContainer.dataset.itemIndex;
-            const priceInput = itemContainer.querySelector(`input[name="item_${itemIndex}_price"]`);
-            const itemPrice = parseFloat(priceInput.value);
+        const itemIndex = itemContainer.dataset.itemIndex;
 
-            for (let i = 1; i <= personCount; i++) {
-                const checkboxDiv = document.createElement('div');
-                checkboxDiv.className = 'form-check form-check-inline';
-                checkboxDiv.innerHTML = `
-                    <input class="form-check-input person-item-checkbox" type="checkbox" 
-                           name="person_${i}_item_${itemIndex}" value="on"
-                           data-person-id="${i}" data-item-price="${itemPrice}" data-item-index="${itemIndex}">
-                    <label class="form-check-label" for="person_${i}_item_${itemIndex}">Person ${i}</label>
-                `;
-                checkboxesContainer.appendChild(checkboxDiv);
-            }
-        });
-    }
+        for (let i = 1; i <= personCount; i++) {
+            const checkboxDiv = document.createElement('div');
+            checkboxDiv.className = 'form-check form-check-inline';
+            checkboxDiv.innerHTML = `
+                <input class="form-check-input person-item-checkbox" type="checkbox" 
+                       name="person_${i}_item_${itemIndex}" value="on"
+                       data-person-id="${i}" data-item-index="${itemIndex}">
+                <label class="form-check-label" for="person_${i}_item_${itemIndex}">Person ${i}</label>
+            `;
+            checkboxesContainer.appendChild(checkboxDiv);
+        }
+    });
+}
+
 
     function updateIndividualTotals() {
-        const peopleTotals = {};
-        const peopleCount = parseInt(peopleCountInput.value);
+    const peopleTotals = {};
+    const peopleCount = parseInt(peopleCountInput.value);
 
-        for (let i = 1; i <= peopleCount; i++) {
-            peopleTotals[i] = 0;
+    for (let i = 1; i <= peopleCount; i++) peopleTotals[i] = 0;
+
+    // For each item, split its price equally among the checked people
+    document.querySelectorAll('.item-container').forEach(itemContainer => {
+        const itemIndex = itemContainer.dataset.itemIndex;
+        const priceInput = itemContainer.querySelector(`input[name="item_${itemIndex}_price"]`);
+        const itemPrice = parseFloat(priceInput?.value) || 0;
+
+        // Only consider people who are checked for this item
+        const selected = itemContainer.querySelectorAll('.person-item-checkbox:checked');
+        const n = selected.length;
+
+        if (itemPrice > 0 && n > 0) {
+            const share = itemPrice / n;
+            selected.forEach(cb => {
+                const personId = parseInt(cb.dataset.personId);
+                peopleTotals[personId] += share;
+            });
         }
+    });
 
-        document.querySelectorAll('.person-item-checkbox:checked').forEach(cb => {
-            const personId = parseInt(cb.dataset.personId);
-            const itemPrice = parseFloat(cb.dataset.itemPrice);
-            if (!isNaN(itemPrice)) {
-                peopleTotals[personId] += itemPrice;
-            }
-        });
-
-        for (let i = 1; i <= peopleCount; i++) {
-            const personCard = peopleContainer.querySelector(`.person-card:nth-child(${i})`);
-            if (personCard) {
-                const totalSpan = personCard.querySelector('.person-total');
-                if (totalSpan) {
-                    totalSpan.textContent = `Rs ${peopleTotals[i].toFixed(2)}`;
-                }
-            }
+    // Update UI
+    for (let i = 1; i <= peopleCount; i++) {
+        const personCard = peopleContainer.querySelector(`.person-card:nth-child(${i})`);
+        if (personCard) {
+            const totalSpan = personCard.querySelector('.person-total');
+            if (totalSpan) totalSpan.textContent = `Rs ${peopleTotals[i].toFixed(2)}`;
         }
     }
+}
+
 });
