@@ -15,7 +15,7 @@ load_dotenv()
 # No spaces around '=', no comments on the same line as key-value pairs.
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY")) # Use GEMINI_API_KEY for consistency
-model = genai.GenerativeModel(model_name="models/gemini-1.5-flash-latest")
+model = genai.GenerativeModel(model_name="models/gemini-2.5-flash")
 
 rekognition = boto3.client(
     'rekognition',

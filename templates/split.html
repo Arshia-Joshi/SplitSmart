@@ -96,14 +96,25 @@
 
                                                     {% if total is not none %}
                                                     <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                                                        Total Bill: 
+                                                    {% if total is not none %}
+                                                        Total Bill:
                                                         <span>
-                                                            Rs 
+                                                            Rs
                                                             <input type="number" step="0.01" name="total"
                                                                 value="{{ "%.2f"|format(total) }}"
                                                                 class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
                                                         </span>
-                                                    </li>
+                                                    {% elif net_amount is not none %}
+                                                        Net Amount:
+                                                        <span>
+                                                            Rs
+                                                            <input type="number" step="0.01" name="net_amount"
+                                                                value="{{ "%.2f"|format(net_amount) }}"
+                                                                class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
+                                                        </span>
+                                                    {% endif %}
+                                                </li>
+
                                                     {% endif %}
                                                 </ul>
 
