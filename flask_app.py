@@ -74,7 +74,11 @@ def upload_file():
 @app.route('/calculate', methods=['POST'])
 def calculate_shares():
     people_count = int(request.form.get('peopleCount', 2))
-    
+
+    print("\n \n \n \n \n ")
+    print(request.form)
+    print("\n \n \n \n \n ")
+
     people = []
     for i in range(1, people_count + 1):
         name = request.form.get(f'person_{i}_name', f'Person {i}')
@@ -173,6 +177,7 @@ def calculate_shares():
     
     if people_count > 0:
         share_of_remaining = remaining_total / people_count
+        print("\n \n \n \n \n People names:",people,"\n \n \n \n \n ")
         for person in people:
             person['total'] += share_of_remaining
             person['formatted_total'] = "{:.2f}".format(person['total'])

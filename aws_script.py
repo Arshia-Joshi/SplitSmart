@@ -56,7 +56,7 @@ Extract the following from this bill:
 Do not calculate any totals yourself; extract only the values explicitly given in the bill.
 If a category is not found, use an empty array for lists or null for single values.
 
-Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (```json). Just provide the raw JSON object.** Example format:
+Ensure the output is valid JSON. *DO NOT wrap the JSON in markdown backticks (```json). Just provide the raw JSON object.* Example format:
 {{
     "restaurant_name": "Example Restaurant",
     "items": [
@@ -68,7 +68,7 @@ Ensure the output is valid JSON. **DO NOT wrap the JSON in markdown backticks (`
         {{ "type": "Service Charge", "amount": 3.00, "percentage": null }}
     ],
     "subtotal": 20.00,
-    "total": 24.20
+    "total": 24.20
 }}
 """
 
