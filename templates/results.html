@@ -20,6 +20,20 @@
       </div>
 
       <div class="card-body">
+        {% if email_statuses %}
+  <h4 class="mb-3">Email Notifications</h4>
+  <ul class="list-group mb-4">
+    {% for status in email_statuses %}
+      {% if status.status == 'success' %}
+        <li class="list-group-item list-group-item-success">✔ {{ status.message }}</li>
+      {% elif status.status == 'error' %}
+        <li class="list-group-item list-group-item-danger">✖ {{ status.message }}</li>
+      {% else %}
+        <li class="list-group-item list-group-item-warning">! {{ status.message }}</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+  <hr class="my-4"> {% endif %}
         <div class="row">
           <!-- Left: Original Bill Image -->
           <div class="col-md-6">

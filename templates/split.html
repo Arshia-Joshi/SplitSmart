@@ -23,17 +23,29 @@
                             </div>
                             <div class="col-md-6">
                                 <form id="splitForm" method="POST" action="/calculate">
+                                    
                                     <input type="hidden" name="hidden_subtotal" value="{{ subtotal if subtotal is not none else 0 }}">
                                     <input type="hidden" name="hidden_total" value="{{ total if total is not none else 0 }}">
                                     <input type="hidden" name="hidden_taxes" value="{{ taxes | tojson }}"> 
-                                    
+                                    <input type="hidden" name="receipt_image_url" value="{{ image_url }}">
+                                    <input type="hidden" name="restaurant_name" value="{{ restaurant }}">
+
+                                    <div class="mb-3">
+                                        <label for="payer_name" class="form-label fw-bold">Who is paying? (Your Name)</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="payer_name" 
+                                               name="payer_name" 
+                                               placeholder="Enter the name of the person who paid" 
+                                               required>
+                                    </div>
                                     <div class="mb-4">
                                         <label for="peopleCount" class="form-label">How many people to split between?</label>
                                         <input type="number" class="form-control" id="peopleCount" name="peopleCount" min="1" max="10" value="2" required>
                                     </div>
                                     
                                     <div id="peopleContainer">
-                                        </div>
+                                    </div>
                                     
                                     <div class="mt-4">
                                         <h5>Items:</h5>
@@ -43,100 +55,96 @@
                                                 <div class="d-flex justify-content-between align-items-center">
                                                     <span>{{ item.name }}</span>
 
-                                                    <!-- Editable price input -->
                                                     <div class="input-group input-group-sm" style="width: 150px;">
                                                         <span class="input-group-text">Rs</span>
                                                         <input type="number" 
-                                                            step="0.01" 
-                                                            class="form-control"
-                                                            name="item_{{ loop.index0 }}_price" 
-                                                            value="{{ "%.2f"|format(item.price) }}">
+                                                               step="0.01" 
+                                                               class="form-control"
+                                                               name="item_{{ loop.index0 }}_price" 
+                                                               value="{{ "%.2f"|format(item.price) }}">
                                                     </div>
 
-                                                    <!-- Hidden name field -->
                                                     <input type="hidden" name="item_{{ loop.index0 }}_name" value="{{ item.name }}">
 
-                                                    <!-- Checkbox -->
                                                     <input type="checkbox" class="form-check-input item-checkbox ms-2">
                                                 </div>
 
                                                 <div class="people-checkboxes mt-2" style="display: none;"></div>
                                             </div>
-                                        {% endfor %}
+                                            {% endfor %}
+                                        </div>
+
                                     </div>
-
-                                        </div>
-                                        <div class="mt-4 bill-summary">
-                                            <h5>Bill Summary:</h5>
-                                            <form method="POST" action="/update_taxes">
-                                                <ul class="list-group list-group-flush">
-                                                    {% if subtotal is not none %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        Subtotal: <span>Rs{{ "%.2f"|format(subtotal) }}</span>
-                                                    </li>
-                                                    {% endif %}
-
-                                                    {% for tax in taxes %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        {{ tax.type }}:
-                                                        <span>
-                                                            Rs 
-                                                            <input type="number" step="0.01" name="tax_amount_{{ loop.index }}" 
-                                                                value="{{ "%.2f"|format(tax.amount) }}" 
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end" />
-
-                                                            {% if tax.percentage is not none %}
-                                                                (<input type="number" step="0.01" name="tax_percentage_{{ loop.index }}" 
-                                                                        value="{{ tax.percentage }}" 
-                                                                        class="form-control form-control-sm d-inline-block w-auto text-end" /> %)
-                                                            {% endif %}
-                                                        </span>
-                                                    </li>
-                                                    {% endfor %}
-
-                                                    {% if total is not none %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                                                    {% if total is not none %}
-                                                        Total Bill:
-                                                        <span>
-                                                            Rs
-                                                            <input type="number" step="0.01" name="total"
-                                                                value="{{ "%.2f"|format(total) }}"
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
-                                                        </span>
-                                                    {% elif net_amount is not none %}
-                                                        Net Amount:
-                                                        <span>
-                                                            Rs
-                                                            <input type="number" step="0.01" name="net_amount"
-                                                                value="{{ "%.2f"|format(net_amount) }}"
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
-                                                        </span>
-                                                    {% endif %}
-                                                </li>
-
-                                                    {% endif %}
-                                                </ul>
-
-                                                <button type="submit" class="btn btn-primary mt-3">Update Taxes & Total</button>
-                                            </form>
-                                        </div>
-
-
+                                    <div class="mt-4 bill-summary">
+                                        <h5>Bill Summary:</h5>
                                         
-                                        <div class="d-grid mt-4">
-                                            <button type="submit" class="btn btn-split">
-                                                <i class="fas fa-calculator me-2"></i> Calculate Shares
-                                            </button>
+                                        <ul class="list-group list-group-flush">
+                                            {% if subtotal is not none %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                Subtotal: <span>Rs{{ "%.2f"|format(subtotal) }}</span>
+                                            </li>
+                                            {% endif %}
+
+                                            {% for tax in taxes %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                {{ tax.type }}:
+                                                <span>
+                                                    Rs 
+                                                    <input type="number" step="0.01" name="tax_amount_{{ loop.index }}" 
+                                                           value="{{ "%.2f"|format(tax.amount) }}" 
+                                                           class="form-control form-control-sm d-inline-block w-auto text-end" />
+
+                                                    {% if tax.percentage is not none %}
+                                                        (<input type="number" step="0.01" name="tax_percentage_{{ loop.index }}" 
+                                                                value="{{ tax.percentage }}" 
+                                                                class="form-control form-control-sm d-inline-block w-auto text-end" /> %)
+                                                    {% endif %}
+                                                </span>
+                                            </li>
+                                            {% endfor %}
+
+                                            {% if total is not none %}
+                                            <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
+                                            {% if total is not none %}
+                                                Total Bill:
+                                                <span>
+                                                    Rs
+                                                    <input type="number" step="0.01" name="total"
+                                                           value="{{ "%.2f"|format(total) }}"
+                                                           class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
+                                                </span>
+                                            {% elif net_amount is not none %}
+                                                Net Amount:
+                                                <span>
+                                                    Rs
+                                                    <input type="number" step="0.01" name="net_amount"
+                                                           value="{{ "%.2f"|format(net_amount) }}"
+                                                           class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
+                                                </span>
+                                            {% endif %}
+                                            </li>
+
+                                            {% endif %}
+                                        </ul>
+
+                                        <button type="button" class="btn btn-primary mt-3" disabled>Update Taxes & Total</button>
+                                        
                                         </div>
-                                    </form>
-                                </div>
+
+                                    
+                                    <div class="d-grid mt-4">
+                                        <button type="submit" class="btn btn-split">
+                                            <i class="fas fa-calculator me-2"></i> Calculate Shares
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='javasplit.js') }}"></script>

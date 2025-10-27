@@ -3,6 +3,10 @@ import os
 from werkzeug.utils import secure_filename
 from aws_script import extract_text_from_bill
 import json
+from dotenv import load_dotenv  # <-- For loading secret keys
+from email_sender import send_bill_email # <-- Our email function
+
+load_dotenv() # <-- Load variables from .env file
 
 app = Flask(__name__)
 
@@ -24,6 +28,7 @@ def home():
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
+    # ... (This entire function remains exactly the same) ...
     if 'bill' not in request.files:
         return "No file selected", 400
     
@@ -73,6 +78,20 @@ def upload_file():
 
 @app.route('/calculate', methods=['POST'])
 def calculate_shares():
+    
+    # --- NEW: Get sender credentials and meal name ---
+    SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD") # <-- Get password
+    
+    # --- MODIFIED: Reads from the 'payer_name' text box in your form ---
+    payer_name = request.form.get('payer_name', 'Your Name') 
+    
+    # Get restaurant name from the hidden input
+    restaurant_name = request.form.get('restaurant_name', 'Your Meal') 
+    
+    # Get the receipt image path
+    receipt_path = request.form.get('receipt_image_url')
+    # --- End NEW ---
+
     people_count = int(request.form.get('peopleCount', 2))
 
     print("\n \n \n \n \n ")
@@ -82,33 +101,32 @@ def calculate_shares():
     people = []
     for i in range(1, people_count + 1):
         name = request.form.get(f'person_{i}_name', f'Person {i}')
+        email = request.form.get(f'person_{i}_email', '') # <-- Get the email
+        
         people.append({
             'name': name,
+            'email': email, # <-- Store the email
             'items': [],
             'total': 0.0
         })
     
     
+    # ... (Your item processing logic remains the same) ...
     all_items_data = {}
     item_index = 0
     while True:
-        item_name_key = f'item_{item_index}_name'
-        item_price_key = f'item_{item_index}_price'
-        
-        item_name = request.form.get(item_name_key)
-        item_price_str = request.form.get(item_price_key)
-
+        item_name = request.form.get(f'item_{item_index}_name')
         if item_name is None:
             break
-        
+        item_price_str = request.form.get(f'item_{item_index}_price')
         try:
             item_price = float(item_price_str)
         except (ValueError, TypeError):
             item_price = 0.0 
-        
         all_items_data[item_index] = {'name': item_name, 'price': item_price}
         item_index += 1
 
+    # ... (Your subtotal, total, and tax logic remains the same) ...
     hidden_subtotal = float(request.form.get('hidden_subtotal', 0.0))
     hidden_total = float(request.form.get('hidden_total', 0.0))
     taxes_json = request.form.get('hidden_taxes', '[]')
@@ -116,22 +134,17 @@ def calculate_shares():
         hidden_taxes = json.loads(taxes_json)
     except json.JSONDecodeError:
         hidden_taxes = []
-
  
     subtotal_str = request.form.get('subtotal')
     try:
         subtotal = float(subtotal_str) if subtotal_str else hidden_subtotal
     except ValueError:
         subtotal = hidden_subtotal
-
-    # Total
     total_str = request.form.get('total')
     try:
         total = float(total_str) if total_str else hidden_total
     except ValueError:
         total = hidden_total
-
-    # Taxes
     taxes = []
     i = 1
     while True:
@@ -157,8 +170,8 @@ def calculate_shares():
             "percentage": tax_percentage
         })
         i += 1
-
-  
+ 
+    # ... (Your item assignment logic remains the same) ...
     for person_idx_one_based in range(1, people_count + 1):
         for item_idx in range(len(all_items_data)):
             checkbox_name = f'person_{person_idx_one_based}_item_{item_idx}'
@@ -171,7 +184,7 @@ def calculate_shares():
                     })
                     people[person_idx_one_based - 1]['total'] += item['price']
     
-
+    # ... (Your final calculation logic remains the same) ...
     items_total_assigned = sum(p['total'] for p in people)
     remaining_total = total - items_total_assigned
     
@@ -187,12 +200,34 @@ def calculate_shares():
 
     grand_total_calculated = sum(person['total'] for person in people)
 
-    print("\n--- Debugging 'people' data before rendering results.html ---")
-    for idx, person_data in enumerate(people):
-        print(f"Person {idx+1} Name: {person_data['name']}")
-        print(f"  Items: {person_data['items']}")
-        print(f"  Total: {person_data['total']}")
-    print("--- End Debugging 'people' data ---")
+    # ... (Your print debugging remains the same) ...
+
+    # --- NEW: Send Emails ---
+    email_statuses = []
+    
+    # --- MODIFIED: Check only for the password ---
+    if not SENDER_PASSWORD:
+        email_statuses.append({'status': 'error', 'message': 'Email credential (SENDER_PASSWORD) is not set in .env file.'})
+    else:
+        for person in people:
+            if person['email']: # Only send if an email was provided
+                
+                # --- MODIFIED: Call function with payer_name ---
+                success, message = send_bill_email(
+                    sender_password=SENDER_PASSWORD,
+                    friend_name=person['name'],
+                    friend_email=person['email'],
+                    amount=person['total'],
+                    meal_name=restaurant_name,
+                    payment_to_name=payer_name  # <-- Uses the name from the form
+                )
+                if success:
+                    email_statuses.append({'status': 'success', 'message': message})
+                else:
+                    email_statuses.append({'status': 'error', 'message': message})
+            else:
+                email_statuses.append({'status': 'warning', 'message': f"No email provided for {person['name']}. Skipped."})
+    # --- End NEW ---
 
     return render_template(
         'results.html',
@@ -201,7 +236,9 @@ def calculate_shares():
         original_total="{:.2f}".format(hidden_total),
         edited_total="{:.2f}".format(total),
         original_taxes=hidden_taxes,
-        edited_taxes=taxes
+        edited_taxes=taxes,
+        email_statuses=email_statuses,
+        receipt_path=receipt_path 
     )
 
 

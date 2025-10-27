@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 </div>
                 <input type="text" class="form-control mb-2" 
                        placeholder="Name (optional)" name="person_${i}_name" id="person_${i}_name">
+
+                <input type="email" class="form-control mb-2" 
+                    placeholder="Email (optional)" name="person_${i}_email" id="person_${i}_email">
                 <div class="person-items" data-person-id="${i}"></div>
             `;
             peopleContainer.appendChild(personDiv);
