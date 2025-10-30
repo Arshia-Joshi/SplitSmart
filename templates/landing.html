@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SplitSmart | Split Bills Effortlessly</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .hero-section {
+            background: linear-gradient(135deg, #6c5ce7 0%, #a29bfe 100%);
+            color: white;
+            padding: 100px 0;
+            text-align: center;
+        }
+        .feature-card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+            height: 100%;
+        }
+        .feature-card:hover {
+            transform: translateY(-10px);
+        }
+        .cta-section {
+            background: #f8f9fa;
+            padding: 80px 0;
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #6c5ce7, #fd79a8);">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('landing') }}">
+                <i class="fas fa-receipt me-2"></i>SplitSmart
+            </a>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('login') }}">Login</a>
+                <a class="nav-link" href="{{ url_for('signup') }}">Sign Up</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="container">
+            <h1 class="display-4 fw-bold mb-4">Split Bills Effortlessly</h1>
+            <p class="lead mb-5">Upload your receipt and let us handle the math. No more awkward money conversations!</p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card feature-card">
+                        <div class="card-body p-5">
+                            <i class="fas fa-cloud-upload-alt fa-4x mb-4 text-primary"></i>
+                            <h3>Get Started in Seconds</h3>
+                            <p class="text-muted">Join thousands who split bills the smart way</p>
+                            <div class="mt-4">
+                                <a href="{{ url_for('signup') }}" class="btn btn-split btn-lg me-3">
+                                    <i class="fas fa-user-plus me-2"></i> Sign Up Free
+                                </a>
+                                <a href="{{ url_for('login') }}" class="btn btn-outline-primary btn-lg">
+                                    <i class="fas fa-sign-in-alt me-2"></i> Login
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="py-5">
+        <div class="container">
+            <div class="row text-center mb-5">
+                <div class="col">
+                    <h2 class="fw-bold">How It Works</h2>
+                    <p class="text-muted">Simple, fast, and accurate bill splitting</p>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-camera"></i>
+                            </div>
+                            <h4>Snap</h4>
+                            <p class="text-muted">Take a photo of your receipt or upload an existing image</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-brain"></i>
+                            </div>
+                            <h4>Process</h4>
+                            <p class="text-muted">Our AI extracts all items and amounts automatically</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-4">
+                    <div class="card feature-card">
+                        <div class="card-body text-center p-4">
+                            <div class="feature-icon mb-3">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <h4>Split</h4>
+                            <p class="text-muted">Assign items to friends and calculate shares instantly</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+        <div class="container text-center">
+            <h2 class="fw-bold mb-4">Ready to Simplify Your Bill Splitting?</h2>
+            <p class="lead mb-4">Join SplitSmart today and say goodbye to complicated calculations</p>
+            <a href="{{ url_for('signup') }}" class="btn btn-split btn-lg">
+                <i class="fas fa-rocket me-2"></i> Start Splitting Now
+            </a>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="bg-dark text-white py-4">
+        <div class="container text-center">
+            <p>&copy; 2024 SplitSmart. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

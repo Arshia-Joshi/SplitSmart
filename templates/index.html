@@ -3,12 +3,110 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BillSplitter | Snap & Split</title>
+    <title>SplitSmart | Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .camera-modal .modal-content {
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .camera-preview {
+            width: 100%;
+            height: 400px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        #cameraVideo {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #cameraCanvas {
+            display: none;
+        }
+        .camera-controls {
+            padding: 20px;
+            text-align: center;
+        }
+        .capture-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #6c5ce7;
+            border: 4px solid white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto;
+            transition: all 0.3s ease;
+        }
+        .capture-btn:hover {
+            transform: scale(1.1);
+            background: #5b4cd8;
+        }
+        .capture-btn i {
+            color: white;
+            font-size: 24px;
+        }
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-top: 15px;
+        }
+        .upload-options {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .upload-option {
+            flex: 1;
+            text-align: center;
+            padding: 20px;
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-option:hover {
+            border-color: #6c5ce7;
+            background: #f8f9fa;
+        }
+        .upload-option.active {
+            border-color: #6c5ce7;
+            background: #6c5ce7;
+            color: white;
+        }
+    </style>
 </head>
 <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #6c5ce7, #fd79a8);">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-receipt me-2"></i>SplitSmart
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, {{ session.username }}</span>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-upload me-1"></i>Upload Bill
+                </a>
+                <a class="nav-link" href="{{ url_for('history') }}">
+                    <i class="fas fa-history me-1"></i>History
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container py-5">
         <div class="row justify-content-center">
             <div class="col-lg-8">
@@ -19,22 +117,60 @@
                         <p class="mb-0">Upload your receipt and let us handle the math</p>
                     </div>
                     <div class="card-body p-5">
-                        <form method="POST" action="/upload" enctype="multipart/form-data">
-                            <div class="file-upload-wrapper">
-                                <input type="file" class="file-upload-input" id="bill" name="bill" required>
+                        <!-- Upload Options -->
+                        <div class="upload-options">
+                            <div class="upload-option active" id="fileUploadOption" onclick="showFileUpload()">
+                                <i class="fas fa-folder-open fa-3x mb-3"></i>
+                                <h5>Upload File</h5>
+                                <p class="text-muted mb-0">Choose from device</p>
+                            </div>
+                            <div class="upload-option" id="cameraOption" onclick="showCameraOption()">
+                                <i class="fas fa-camera fa-3x mb-3"></i>
+                                <h5>Take Photo</h5>
+                                <p class="text-muted mb-0">Use camera</p>
+                            </div>
+                        </div>
+
+                        <!-- File Upload Form -->
+                        <form method="POST" action="/upload" enctype="multipart/form-data" id="fileUploadForm">
+                            <div class="file-upload-wrapper mt-4">
+                                <input type="file" class="file-upload-input" id="bill" name="bill" required accept=".png,.jpg,.jpeg,.webp">
                                 <label for="bill" class="file-upload-label">
                                     <i class="fas fa-cloud-upload-alt fa-3x mb-3"></i>
                                     <h5>Drag & Drop or Click to Upload</h5>
-                                    <p class="text-muted">Supports JPG, PNG, PDF (Max 10MB)</p>
+                                    <p class="text-muted">Supports JPG, PNG, JPEG, WEBP (Max 10MB)</p>
                                 </label>
                             </div>
                             
-                            <div class="d-grid">
+                            <div class="d-grid mt-4">
                                 <button type="submit" class="btn btn-split">
                                     <i class="fas fa-paper-plane me-2"></i> Split This Bill
                                 </button>
                             </div>
                         </form>
+
+                        <!-- Camera Section (Hidden by default) -->
+                        <div id="cameraSection" class="mt-4" style="display: none;">
+                            <div class="camera-preview-container text-center">
+                                <div class="camera-preview mb-3">
+                                    <video id="cameraVideo" autoplay playsinline></video>
+                                    <canvas id="cameraCanvas" style="display: none;"></canvas>
+                                </div>
+                                <div class="camera-controls">
+                                    <div class="capture-btn" onclick="capturePhoto()">
+                                        <i class="fas fa-camera"></i>
+                                    </div>
+                                    <div class="camera-actions">
+                                        <button class="btn btn-outline-secondary" onclick="switchCamera()">
+                                            <i class="fas fa-sync-alt me-1"></i> Switch Camera
+                                        </button>
+                                        <button class="btn btn-outline-danger" onclick="stopCamera()">
+                                            <i class="fas fa-times me-1"></i> Cancel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -71,7 +207,217 @@
         </div>
     </div>
 
+    <!-- Camera Modal (for larger view) -->
+    <div class="modal fade camera-modal" id="cameraModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Take Photo of Your Bill</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" onclick="stopCamera()"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="camera-preview">
+                        <video id="cameraVideoModal" autoplay playsinline></video>
+                        <canvas id="cameraCanvasModal" style="display: none;"></canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <div class="camera-controls">
+                        <div class="capture-btn" onclick="capturePhotoModal()">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                        <div class="camera-actions">
+                            <button class="btn btn-outline-secondary" onclick="switchCameraModal()">
+                                <i class="fas fa-sync-alt me-1"></i> Switch Camera
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="stopCameraModal()">
+                                <i class="fas fa-times me-1"></i> Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='javascript.js') }}"></script>
+    <script>
+        let currentStream = null;
+        let currentFacingMode = 'environment'; // 'user' for front camera, 'environment' for back camera
+
+        function showFileUpload() {
+            document.getElementById('fileUploadOption').classList.add('active');
+            document.getElementById('cameraOption').classList.remove('active');
+            document.getElementById('fileUploadForm').style.display = 'block';
+            document.getElementById('cameraSection').style.display = 'none';
+            stopCamera();
+        }
+
+        function showCameraOption() {
+            document.getElementById('cameraOption').classList.add('active');
+            document.getElementById('fileUploadOption').classList.remove('active');
+            document.getElementById('fileUploadForm').style.display = 'none';
+            document.getElementById('cameraSection').style.display = 'block';
+            startCamera();
+        }
+
+        async function startCamera() {
+            try {
+                stopCamera(); // Stop any existing stream
+                
+                const constraints = {
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                currentStream = stream;
+                
+                const video = document.getElementById('cameraVideo');
+                video.srcObject = stream;
+                
+                console.log('Camera started successfully');
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+                alert('Unable to access camera. Please check permissions and try again.');
+                showFileUpload(); // Fallback to file upload
+            }
+        }
+
+        function stopCamera() {
+            if (currentStream) {
+                currentStream.getTracks().forEach(track => track.stop());
+                currentStream = null;
+            }
+            const video = document.getElementById('cameraVideo');
+            if (video) {
+                video.srcObject = null;
+            }
+        }
+
+        function switchCamera() {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            startCamera();
+        }
+
+        function capturePhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const context = canvas.getContext('2d');
+
+            // Set canvas dimensions to match video
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Draw current video frame to canvas
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert canvas to blob and upload
+            canvas.toBlob(function(blob) {
+                uploadCapturedPhoto(blob);
+            }, 'image/jpeg', 0.8);
+        }
+
+        function uploadCapturedPhoto(blob) {
+            const formData = new FormData();
+            formData.append('bill', blob, 'captured_bill.jpg');
+
+            // Show loading state
+            const splitButton = document.querySelector('.btn-split');
+            const originalText = splitButton.innerHTML;
+            splitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Processing...';
+            splitButton.disabled = true;
+
+            fetch('/upload', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (response.ok) {
+                    return response.text();
+                } else {
+                    throw new Error('Upload failed');
+                }
+            })
+            .then(html => {
+                // Replace current page with the split page
+                document.open();
+                document.write(html);
+                document.close();
+            })
+            .catch(error => {
+                console.error('Upload error:', error);
+                alert('Error uploading photo. Please try again.');
+                splitButton.innerHTML = originalText;
+                splitButton.disabled = false;
+            });
+        }
+
+        // Modal camera functions
+        function openCameraModal() {
+            const modal = new bootstrap.Modal(document.getElementById('cameraModal'));
+            modal.show();
+            startCameraModal();
+        }
+
+        async function startCameraModal() {
+            try {
+                const constraints = {
+                    video: { 
+                        facingMode: currentFacingMode,
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    },
+                    audio: false
+                };
+
+                const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                const video = document.getElementById('cameraVideoModal');
+                video.srcObject = stream;
+                
+            } catch (error) {
+                console.error('Error accessing camera in modal:', error);
+                alert('Unable to access camera. Please check permissions.');
+            }
+        }
+
+        function capturePhotoModal() {
+            const video = document.getElementById('cameraVideoModal');
+            const canvas = document.getElementById('cameraCanvasModal');
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            canvas.toBlob(function(blob) {
+                uploadCapturedPhoto(blob);
+                bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
+            }, 'image/jpeg', 0.8);
+        }
+
+        function switchCameraModal() {
+            currentFacingMode = currentFacingMode === 'environment' ? 'user' : 'environment';
+            startCameraModal();
+        }
+
+        function stopCameraModal() {
+            const video = document.getElementById('cameraVideoModal');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            bootstrap.Modal.getInstance(document.getElementById('cameraModal')).hide();
+        }
+
+        // Initialize with file upload
+        document.addEventListener('DOMContentLoaded', function() {
+            showFileUpload();
+        });
+    </script>
 </body>
 </html>
