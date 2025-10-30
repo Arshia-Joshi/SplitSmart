@@ -367,133 +367,178 @@ def upload_file():
 
 @app.route('/calculate', methods=['POST'])
 @login_required
+
 def calculate_shares():
-    """Calculate bill shares, save to history, and send email notifications."""
+    
+    # --- NEW: Get sender credentials and meal name ---
+    SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD") # <-- Get password
+    
+    # --- MODIFIED: Reads from the 'payer_name' text box in your form ---
+    payer_name = request.form.get('payer_name', 'Your Name') 
+    
+    # Get restaurant name from the hidden input
+    restaurant_name = request.form.get('restaurant_name', 'Your Meal') 
+    
+    # Get the receipt image path
+    receipt_path = request.form.get('receipt_image_url')
+    # --- End NEW ---
+
+    people_count = int(request.form.get('peopleCount', 2))
+    user_id=session['user_id']
+
+    print("\n \n \n \n \n ")
+    print(request.form)
+    print("\n \n \n \n \n ")
+
+    people = []
+    for i in range(1, people_count + 1):
+        name = request.form.get(f'person_{i}_name', f'Person {i}')
+        email = request.form.get(f'person_{i}_email', '') # <-- Get the email
+        
+        people.append({
+            'name': name,
+            'email': email, # <-- Store the email
+            'items': [],
+            'total': 0.0
+        })
+    
+    
+    # ... (Your item processing logic remains the same) ...
+    all_items_data = {}
+    item_index = 0
+    while True:
+        item_name = request.form.get(f'item_{item_index}_name')
+        if item_name is None:
+            break
+        item_price_str = request.form.get(f'item_{item_index}_price')
+        try:
+            item_price = float(item_price_str)
+        except (ValueError, TypeError):
+            item_price = 0.0 
+        all_items_data[item_index] = {'name': item_name, 'price': item_price}
+        item_index += 1
+
+    # ... (Your subtotal, total, and tax logic remains the same) ...
+    hidden_subtotal = float(request.form.get('hidden_subtotal', 0.0))
+    hidden_total = float(request.form.get('hidden_total', 0.0))
+    taxes_json = request.form.get('hidden_taxes', '[]')
     try:
-        # --- USER & BASIC BILL INFO ---
-        user_id = session['user_id']
-        current_username = session['username']
-        SENDER_PASSWORD = os.environ.get("SENDER_PASSWORD")  # Email sender password
-
-        payer_name = request.form.get('payer_name', current_username)
-        restaurant_name = request.form.get('restaurant_name', 'Unknown Restaurant')
-        receipt_path = request.form.get('receipt_image_url', '')
-        people_count = int(request.form.get('peopleCount', 2))
-
-        # --- BUILD PEOPLE LIST (name + email) ---
-        people = []
-        for i in range(1, people_count + 1):
-            name = request.form.get(f'person_{i}_name', f'Person {i}')
-            email = request.form.get(f'person_{i}_email', '')
-            people.append({'name': name, 'email': email, 'items': [], 'total': 0.0})
-            print(people)
-
-        # --- READ ITEM DATA ---
-        all_items_data = {}
-        item_index = 0
-        while True:
-            item_name = request.form.get(f'item_{item_index}_name')
-            if item_name is None:
-                break
-            item_price_str = request.form.get(f'item_{item_index}_price')
-            try:
-                item_price = float(item_price_str) if item_price_str else 0.0
-            except (ValueError, TypeError):
-                item_price = 0.0
-            all_items_data[item_index] = {'name': item_name, 'price': item_price}
-            item_index += 1
-
-        # --- TAX & TOTAL HANDLING ---
-        hidden_subtotal = float(request.form.get('hidden_subtotal', 0.0))
-        hidden_total = float(request.form.get('hidden_total', 0.0))
-        taxes_json = request.form.get('hidden_taxes', '[]')
+        hidden_taxes = json.loads(taxes_json)
+    except json.JSONDecodeError:
+        hidden_taxes = []
+ 
+    subtotal_str = request.form.get('subtotal')
+    try:
+        subtotal = float(subtotal_str) if subtotal_str else hidden_subtotal
+    except ValueError:
+        subtotal = hidden_subtotal
+    total_str = request.form.get('total')
+    try:
+        total = float(total_str) if total_str else hidden_total
+    except ValueError:
+        total = hidden_total
+    taxes = []
+    i = 1
+    while True:
+        amount_key = f"tax_amount_{i}"
+        perc_key = f"tax_percentage_{i}"
+        tax_amount_str = request.form.get(amount_key)
+        if tax_amount_str is None:
+            break
         try:
-            hidden_taxes = json.loads(taxes_json)
-        except json.JSONDecodeError:
-            hidden_taxes = []
-
-        subtotal_str = request.form.get('subtotal')
-        total_str = request.form.get('total')
-
-        try:
-            subtotal = float(subtotal_str) if subtotal_str else hidden_subtotal
+            tax_amount = float(tax_amount_str)
         except ValueError:
-            subtotal = hidden_subtotal
-        try:
-            total = float(total_str) if total_str else hidden_total
-        except ValueError:
-            total = hidden_total
-
-        # --- EXTRACT TAXES (IF ANY) ---
-        taxes = []
-        i = 1
-        while True:
-            amount_key = f"tax_amount_{i}"
-            perc_key = f"tax_percentage_{i}"
-            tax_amount_str = request.form.get(amount_key)
-            if tax_amount_str is None:
-                break
+            tax_amount = 0.0
+        tax_percentage_str = request.form.get(perc_key)
+        tax_percentage = None
+        if tax_percentage_str:
             try:
-                tax_amount = float(tax_amount_str)
+                tax_percentage = float(tax_percentage_str)
             except ValueError:
-                tax_amount = 0.0
-            tax_percentage_str = request.form.get(perc_key)
-            tax_percentage = None
-            if tax_percentage_str:
-                try:
-                    tax_percentage = float(tax_percentage_str)
-                except ValueError:
-                    pass
-            taxes.append({
-                "type": f"Tax {i}",
-                "amount": tax_amount,
-                "percentage": tax_percentage
-            })
-            i += 1
+                pass
+        taxes.append({
+            "type": f"Tax {i}",
+            "amount": tax_amount,
+            "percentage": tax_percentage
+        })
+        i += 1
+ 
+    # ... (Your item assignment logic remains the same) ...
+    for person_idx_one_based in range(1, people_count + 1):
+        for item_idx in range(len(all_items_data)):
+            checkbox_name = f'person_{person_idx_one_based}_item_{item_idx}'
+            if request.form.get(checkbox_name) == 'on': 
+                item = all_items_data.get(item_idx)
+                if item:
+                    people[person_idx_one_based - 1]['items'].append({
+                        'name': item['name'],
+                        'price': item['price']
+                    })
+                    people[person_idx_one_based - 1]['total'] += item['price']
+    
+    # ... (Your final calculation logic remains the same) ...
+    items_total_assigned = sum(p['total'] for p in people)
+    remaining_total = total - items_total_assigned
+    
+    if people_count > 0:
+        share_of_remaining = remaining_total / people_count
+        print("\n \n \n \n \n People names:",people,"\n \n \n \n \n ")
+        for person in people:
+            person['total'] += share_of_remaining
+            person['formatted_total'] = "{:.2f}".format(person['total'])
+    else:
+        for person in people:
+            person['formatted_total'] = "{:.2f}".format(person['total'])
 
-        # --- ITEM ASSIGNMENT TO PEOPLE ---
-        for person_idx_one_based in range(1, people_count + 1):
-            for item_idx in range(len(all_items_data)):
-                checkbox_name = f'person_{person_idx_one_based}item{item_idx}'
-                if request.form.get(checkbox_name) == 'on':
-                    item = all_items_data.get(item_idx)
-                    if item:
-                        people[person_idx_one_based - 1]['items'].append({
-                            'name': item['name'],
-                            'price': item['price']
-                        })
-                        people[person_idx_one_based - 1]['total'] += item['price']
+    grand_total_calculated = sum(person['total'] for person in people)
 
-        # --- CALCULATE REMAINING & DISTRIBUTE ---
-        items_total_assigned = sum(p['total'] for p in people)
-        remaining_total = round(total - items_total_assigned, 2)
+    # ... (Your print debugging remains the same) ...
 
-        if people_count > 0:
-            share_of_remaining = remaining_total / people_count
-            for person in people:
-                person['total'] += share_of_remaining
-                person['formatted_total'] = "{:.2f}".format(person['total'])
-        else:
-            for person in people:
-                person['formatted_total'] = "{:.2f}".format(person['total'])
-
-        grand_total_calculated = sum(person['total'] for person in people)
-
-        # --- SAVE TO DATABASE ---
+    # --- NEW: Send Emails ---
+    email_statuses = []
+    
+    # --- MODIFIED: Check only for the password ---
+    if not SENDER_PASSWORD:
+        email_statuses.append({'status': 'error', 'message': 'Email credential (SENDER_PASSWORD) is not set in .env file.'})
+    else:
+        for person in people:
+            if person['email']: # Only send if an email was provided
+                
+                # --- MODIFIED: Call function with payer_name ---
+                success, message = send_bill_email(
+                    sender_password=SENDER_PASSWORD,
+                    friend_name=person['name'],
+                    friend_email=person['email'],
+                    amount=person['total'],
+                    meal_name=restaurant_name,
+                    payment_to_name=payer_name  # <-- Uses the name from the form
+                )
+                if success:
+                    email_statuses.append({'status': 'success', 'message': message})
+                else:
+                    email_statuses.append({'status': 'error', 'message': message})
+            else:
+                email_statuses.append({'status': 'warning', 'message': f"No email provided for {person['name']}. Skipped."})
+    # --- End NEW ---
+     # ========== SAVE TO DATABASE ==========
         db = db_instance.get_db()
-
+        
+        # 1. Save to bill_history
         bill_data = {
             'user_id': user_id,
             'restaurant_name': restaurant_name,
-            'total_amount': total,
+            'total_amount': grand_total_calculated,
             'split_among': people_count,
             'bill_date': datetime.now(timezone.utc),
-            'image_path': receipt_path
+            'image_path': ""
         }
-
+        
         bill_result = db.bill_history.insert_one(bill_data)
         bill_id = bill_result.inserted_id
-
+        
+        print(f"✅ Bill saved to history with ID: {bill_id}")
+        
+        # 2. Save split details (NOTIFICATION PART REMOVED)
         for person in people:
             split_data = {
                 'bill_id': bill_id,
@@ -503,58 +548,20 @@ def calculate_shares():
                 'items': [item['name'] for item in person['items']]
             }
             db.split_details.insert_one(split_data)
+        
+        flash('Bill split and saved to history successfully!', 'success')
 
-        print(f"✅ Bill saved with ID: {bill_id}")
-
-        # --- EMAIL NOTIFICATIONS ---
-        email_statuses = []
-        if not SENDER_PASSWORD:
-            email_statuses.append({
-                'status': 'error',
-                'message': 'Email sender password not set in environment (.env).'
-            })
-        else:
-            for person in people:
-                if person['email']:
-                    success, message = send_bill_email(
-                        sender_password=SENDER_PASSWORD,
-                        friend_name=person['name'],
-                        friend_email=person['email'],
-                        amount=person['total'],
-                        meal_name=restaurant_name,
-                        payment_to_name=payer_name
-                    )
-                    if success:
-                        email_statuses.append({'status': 'success', 'message': message})
-                    else:
-                        email_statuses.append({'status': 'error', 'message': message})
-                else:
-                    email_statuses.append({
-                        'status': 'warning',
-                        'message': f"No email for {person['name']}. Skipped."
-                    })
-
-        flash('Bill split, saved, and notifications sent successfully!', 'success')
-
-        # --- RENDER RESULTS PAGE ---
-        return render_template(
-            'results.html',
-            people=people,
-            grand_total="{:.2f}".format(grand_total_calculated),
-            original_total="{:.2f}".format(hidden_total),
-            edited_total="{:.2f}".format(total),
-            original_taxes=hidden_taxes,
-            edited_taxes=taxes,
-            email_statuses=email_statuses,
-            receipt_path=receipt_path.replace('/static/', '')
-        )
-
-    except Exception as e:
-        print(f"❌ Error in calculate_shares: {e}")
-        import traceback
-        traceback.print_exc()
-        flash('Error processing bill split', 'error')
-        return redirect(url_for('dashboard'))
+    return render_template(
+        'results.html',
+        people=people,
+        grand_total="{:.2f}".format(grand_total_calculated),
+        original_total="{:.2f}".format(hidden_total),
+        edited_total="{:.2f}".format(total),
+        original_taxes=hidden_taxes,
+        edited_taxes=taxes,
+        email_statuses=email_statuses,
+        receipt_path=receipt_path 
+    )
 
 
 
