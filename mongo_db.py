@@ -9,7 +9,7 @@ load_dotenv()
 
 class MongoDB:
     def __init__(self):
-        self.connection_string = os.getenv('MONGODB_URI', 'mongodb://localhost:27017/')
+        self.connection_string = os.getenv('MONGODB_URI')
         self.database_name = 'splitsmart'
         self.client = None
         self.db = None
