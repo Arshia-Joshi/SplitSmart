@@ -342,9 +342,9 @@ def upload_file():
                     'total': None
                 }
             
-            print("--- Extracted Data for split.html ---")
-            print(json.dumps(extracted_data, indent=4))
-            print("-------------------------------------")
+            # print("--- Extracted Data for split.html ---")
+            # print(json.dumps(extracted_data, indent=4))
+            # print("-------------------------------------")
 
             return render_template(
                 'split.html',
@@ -387,7 +387,7 @@ def calculate_shares():
     user_id=session['user_id']
 
     print("\n \n \n \n \n ")
-    print(request.form)
+    print("FORM::: " ,request.form)
     print("\n \n \n \n \n ")
 
     people = []
@@ -464,22 +464,56 @@ def calculate_shares():
         i += 1
  
     # ... (Your item assignment logic remains the same) ...
-    for person_idx_one_based in range(1, people_count + 1):
-        for item_idx in range(len(all_items_data)):
-            checkbox_name = f'person_{person_idx_one_based}_item_{item_idx}'
-            if request.form.get(checkbox_name) == 'on': 
-                item = all_items_data.get(item_idx)
-                if item:
-                    people[person_idx_one_based - 1]['items'].append({
-                        'name': item['name'],
-                        'price': item['price']
-                    })
-                    people[person_idx_one_based - 1]['total'] += item['price']
+    print("ALL ITEMS DATA: ", all_items_data)
+    # iterate items first and find which people selected each item,
+# then split the price among those people
+    for item_idx in range(len(all_items_data)):
+        item = all_items_data.get(item_idx)
+        if not item:
+            continue
+
+        # make sure price is numeric
+        try:
+            item_price = float(item['price'])
+        except (KeyError, ValueError, TypeError):
+            continue
+
+        # collect indices (0-based) of people who selected this item
+        selected_people = []
+        for person_idx_one_based in range(1, people_count + 1):
+            if request.form.get(f'person_{person_idx_one_based}_item_{item_idx}') == 'on':
+                selected_people.append(person_idx_one_based - 1)
+
+        if not selected_people:
+            # nobody selected this item — skip or handle however you want
+            continue
+
+        # equal share (raw)
+        raw_share = item_price / len(selected_people)
+
+        # round each share to 2 decimals, then fix rounding residual on last person
+        rounded_shares = [round(raw_share, 2) for _ in selected_people]
+        residual = round(item_price - sum(rounded_shares), 2)
+        # add the residual (could be positive or negative) to the last person's share
+        rounded_shares[-1] = round(rounded_shares[-1] + residual, 2)
+
+        # distribute the shares to the selected people
+        for idx, person_zero_based in enumerate(selected_people):
+            share = rounded_shares[idx]
+            people[person_zero_based]['items'].append({
+                'name': item['name'],
+                'price': share
+            })
+            people[person_zero_based]['total'] += share
+
     
     # ... (Your final calculation logic remains the same) ...
     items_total_assigned = sum(p['total'] for p in people)
+
+    print("ITEMS_TOTAL_assighnend",items_total_assigned)
+    print("total:: ", total)
     remaining_total = total - items_total_assigned
-    
+    print("remainig_toatal: ", remaining_total)
     if people_count > 0:
         share_of_remaining = remaining_total / people_count
         print("\n \n \n \n \n People names:",people,"\n \n \n \n \n ")

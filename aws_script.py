@@ -34,6 +34,7 @@ def extract_text_from_bill(image_path):
     for item in response['TextDetections']:
         if item['Type'] == 'LINE':
             lines.append(item['DetectedText'])
+    print("\n\n\n TEXT: ", lines ,"\n\n\n")
 
     prompt = f"""
 You are given raw OCR text from a restaurant bill. Your task is to extract structured billing information in JSON format.
@@ -74,7 +75,8 @@ Ensure the output is valid JSON. *DO NOT wrap the JSON in markdown backticks (``
 
     llm_response = model.generate_content(prompt)
     raw_response_text = llm_response.text
-
+    print("RAW RESPONSE TEXT: ",raw_response_text)
+    print("\n\n\n")
     # --- Strip markdown code block wrappers ---
     if raw_response_text.startswith("```json") and raw_response_text.endswith("```"):
         json_string = raw_response_text[len("```json"):-len("```")].strip()
