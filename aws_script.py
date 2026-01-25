@@ -2,7 +2,7 @@ import boto3
 import os
 from dotenv import load_dotenv
 import google.generativeai as genai
-import json # <--- Make sure this is imported
+import json 
 
 load_dotenv()
 

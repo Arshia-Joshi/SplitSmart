@@ -1,1 +1,2 @@
-# SplitSmart
+# SplitSmart 
+## Bill splitting tool
