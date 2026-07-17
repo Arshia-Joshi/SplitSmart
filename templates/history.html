@@ -23,9 +23,6 @@
                 <a class="nav-link active" href="{{ url_for('history') }}">
                     <i class="fas fa-history me-1"></i>History
                 </a>
-                <a class="nav-link" href="{{ url_for('notifications') }}">
-                    <i class="fas fa-bell me-1"></i>Notifications
-                </a>
                 <a class="nav-link" href="{{ url_for('logout') }}">
                     <i class="fas fa-sign-out-alt me-1"></i>Logout
                 </a>
@@ -59,7 +56,6 @@
                                     <thead class="table-dark">
                                         <tr>
                                             <th>Date & Time</th>
-                                            <th>Restaurant</th>
                                             <th>Total Amount</th>
                                             <th>Split Among</th>
                                             <th>Actions</th>
@@ -69,7 +65,6 @@
                                         {% for bill in bills %}
                                         <tr>
                                             <td>{{ bill.bill_date }}</td>
-                                            <td>{{ bill.restaurant_name }}</td>
                                             <td>₹{{ "%.2f"|format(bill.total_amount) }}</td>
                                             <td>{{ bill.split_among }} people</td>
                                             <td>
@@ -107,7 +102,7 @@
             <div class="modal-dialog modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Bill Details - {{ bill.restaurant_name }}</h5>
+                        <h5 class="modal-title">Bill Details</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
@@ -115,10 +110,6 @@
                             <div class="col-md-6">
                                 <h6>Bill Information</h6>
                                 <ul class="list-group list-group-flush">
-                                    <li class="list-group-item d-flex justify-content-between">
-                                        <span>Restaurant:</span>
-                                        <span class="fw-bold">{{ bill.restaurant_name }}</span>
-                                    </li>
                                     <li class="list-group-item d-flex justify-content-between">
                                         <span>Date & Time:</span>
                                         <span>{{ bill.bill_date }}</span>
@@ -143,8 +134,10 @@
                                                 <span class="fw-bold">{{ detail.payee_name }}</span>
                                                 <span class="text-primary">₹{{ "%.2f"|format(detail.amount) }}</span>
                                             </div>
-                                            {% if detail.items %}
-                                            <small class="text-muted">Items: {{ detail.items|join(', ') }}</small>
+                                            {% if detail.item_list %}
+                                                <small class="text-muted">Items: {{ detail.item_list|join(', ') }}</small>
+                                            {% else %}
+                                                <small class="text-muted">No items specified</small>
                                             {% endif %}
                                         </div>
                                     </div>

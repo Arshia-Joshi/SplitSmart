@@ -9,9 +9,30 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='split.css') }}">
 </head>
 <body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark" style="background: linear-gradient(135deg, #6c5ce7, #fd79a8);">
+        <div class="container">
+            <a class="navbar-brand" href="{{ url_for('dashboard') }}">
+                <i class="fas fa-receipt me-2"></i>SplitSmart
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text me-3">Welcome, {{ session.username }}</span>
+                <a class="nav-link" href="{{ url_for('dashboard') }}">
+                    <i class="fas fa-upload me-1"></i>Upload Bill
+                </a>
+                <a class="nav-link" href="{{ url_for('history') }}">
+                    <i class="fas fa-history me-1"></i>History
+                </a>
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="fas fa-sign-out-alt me-1"></i>Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container py-5">
         <div class="row justify-content-center">
-            <div class="col-lg-10">
+            <div class="col-lg-12">
                 <div class="card receipt-card mb-4">
                     <div class="card-header bg-white">
                         <h2><i class="fas fa-utensils me-2"></i> {{ restaurant }}</h2>
@@ -19,126 +40,219 @@
                     <div class="card-body">
                         <div class="row">
                             <div class="col-md-6">
-                                <img src="/static/{{ image_url }}" class="img-fluid rounded" alt="Receipt">
+                                {% if image_url %}
+                                    <img src="{{ image_url }}" class="img-fluid rounded" alt="Receipt">
+                                {% else %}
+                                    <div class="text-center p-4 bg-light rounded">
+                                        <i class="fas fa-receipt fa-4x text-muted mb-3"></i>
+                                        <p class="text-muted">No receipt image available</p>
+                                    </div>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <form id="splitForm" method="POST" action="/calculate">
+                                    <input type="hidden" name="restaurant_name" value="{{ restaurant }}">
+                                    <input type="hidden" name="image_url" value="{{ image_url }}">
                                     <input type="hidden" name="hidden_subtotal" value="{{ subtotal if subtotal is not none else 0 }}">
                                     <input type="hidden" name="hidden_total" value="{{ total if total is not none else 0 }}">
                                     <input type="hidden" name="hidden_taxes" value="{{ taxes | tojson }}"> 
                                     
                                     <div class="mb-4">
-                                        <label for="peopleCount" class="form-label">How many people to split between?</label>
+                                        <label for="peopleCount" class="form-label fw-bold">How many people to split between?</label>
                                         <input type="number" class="form-control" id="peopleCount" name="peopleCount" min="1" max="10" value="2" required>
                                     </div>
                                     
-                                    <div id="peopleContainer">
-                                        </div>
+                                    <div id="peopleContainer" class="mb-4">
+                                        <!-- People inputs will be generated here by JavaScript -->
+                                    </div>
                                     
                                     <div class="mt-4">
-                                        <h5>Items:</h5>
+                                        <h5 class="fw-bold">Items:</h5>
                                         <div id="itemsList" class="list-group">
                                             {% for item in items %}
                                             <div class="list-group-item item-container" data-item-index="{{ loop.index0 }}">
                                                 <div class="d-flex justify-content-between align-items-center">
-                                                    <span>{{ item.name }}</span>
+                                                    <span class="fw-medium">{{ item.name }}</span>
 
                                                     <!-- Editable price input -->
                                                     <div class="input-group input-group-sm" style="width: 150px;">
-                                                        <span class="input-group-text">Rs</span>
+                                                        <span class="input-group-text">₹</span>
                                                         <input type="number" 
                                                             step="0.01" 
-                                                            class="form-control"
+                                                            class="form-control item-price"
                                                             name="item_{{ loop.index0 }}_price" 
-                                                            value="{{ "%.2f"|format(item.price) }}">
+                                                            value="{{ '%.2f'|format(item.price) if item.price else '0.00' }}"
+                                                            required>
                                                     </div>
 
                                                     <!-- Hidden name field -->
                                                     <input type="hidden" name="item_{{ loop.index0 }}_name" value="{{ item.name }}">
 
-                                                    <!-- Checkbox -->
-                                                    <input type="checkbox" class="form-check-input item-checkbox ms-2">
+                                                    <!-- Checkbox to toggle people selection -->
+                                                    <div class="form-check form-switch ms-3">
+                                                        <input class="form-check-input item-checkbox" type="checkbox" 
+                                                               data-item-index="{{ loop.index0 }}">
+                                                        <label class="form-check-label small">Assign to people</label>
+                                                    </div>
                                                 </div>
 
-                                                <div class="people-checkboxes mt-2" style="display: none;"></div>
+                                                <!-- People checkboxes (initially hidden) -->
+                                                <div class="people-checkboxes mt-2" id="people-checkboxes-{{ loop.index0 }}" style="display: none;">
+                                                    <!-- Will be populated by JavaScript -->
+                                                </div>
                                             </div>
-                                        {% endfor %}
+                                            {% else %}
+                                            <div class="list-group-item text-center text-muted">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                No items extracted from the receipt
+                                            </div>
+                                            {% endfor %}
+                                        </div>
                                     </div>
 
+                                    <div class="mt-4 bill-summary">
+                                        <h5 class="fw-bold">Bill Summary:</h5>
+                                        <div class="list-group list-group-flush">
+                                            {% if subtotal is not none %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>Subtotal:</span>
+                                                <span>₹{{ "%.2f"|format(subtotal) }}</span>
+                                            </div>
+                                            {% endif %}
+
+                                            {% for tax in taxes %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center">
+                                                <span>{{ tax.type }}:</span>
+                                                <span>
+                                                    ₹ 
+                                                    <input type="number" step="0.01" name="tax_amount_{{ loop.index }}" 
+                                                        value="{{ '%.2f'|format(tax.amount) if tax.amount else '0.00' }}" 
+                                                        class="form-control form-control-sm d-inline-block w-auto text-end" />
+
+                                                    {% if tax.percentage is not none %}
+                                                        (<input type="number" step="0.01" name="tax_percentage_{{ loop.index }}" 
+                                                                value="{{ tax.percentage }}" 
+                                                                class="form-control form-control-sm d-inline-block w-auto text-end" />%)
+                                                    {% endif %}
+                                                </span>
+                                            </div>
+                                            {% endfor %}
+
+                                            {% if total is not none %}
+                                            <div class="list-group-item d-flex justify-content-between align-items-center fw-bold bg-light">
+                                                <span>Total Bill:</span>
+                                                <span>
+                                                    ₹
+                                                    <input type="number" step="0.01" name="total"
+                                                        value="{{ '%.2f'|format(total) if total else '0.00' }}"
+                                                        class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" 
+                                                        required />
+                                                </span>
+                                            </div>
+                                            {% endif %}
                                         </div>
-                                        <div class="mt-4 bill-summary">
-                                            <h5>Bill Summary:</h5>
-                                            <form method="POST" action="/update_taxes">
-                                                <ul class="list-group list-group-flush">
-                                                    {% if subtotal is not none %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        Subtotal: <span>Rs{{ "%.2f"|format(subtotal) }}</span>
-                                                    </li>
-                                                    {% endif %}
-
-                                                    {% for tax in taxes %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                        {{ tax.type }}:
-                                                        <span>
-                                                            Rs 
-                                                            <input type="number" step="0.01" name="tax_amount_{{ loop.index }}" 
-                                                                value="{{ "%.2f"|format(tax.amount) }}" 
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end" />
-
-                                                            {% if tax.percentage is not none %}
-                                                                (<input type="number" step="0.01" name="tax_percentage_{{ loop.index }}" 
-                                                                        value="{{ tax.percentage }}" 
-                                                                        class="form-control form-control-sm d-inline-block w-auto text-end" /> %)
-                                                            {% endif %}
-                                                        </span>
-                                                    </li>
-                                                    {% endfor %}
-
-                                                    {% if total is not none %}
-                                                    <li class="list-group-item d-flex justify-content-between align-items-center fw-bold">
-                                                    {% if total is not none %}
-                                                        Total Bill:
-                                                        <span>
-                                                            Rs
-                                                            <input type="number" step="0.01" name="total"
-                                                                value="{{ "%.2f"|format(total) }}"
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
-                                                        </span>
-                                                    {% elif net_amount is not none %}
-                                                        Net Amount:
-                                                        <span>
-                                                            Rs
-                                                            <input type="number" step="0.01" name="net_amount"
-                                                                value="{{ "%.2f"|format(net_amount) }}"
-                                                                class="form-control form-control-sm d-inline-block w-auto text-end fw-bold" />
-                                                        </span>
-                                                    {% endif %}
-                                                </li>
-
-                                                    {% endif %}
-                                                </ul>
-
-                                                <button type="submit" class="btn btn-primary mt-3">Update Taxes & Total</button>
-                                            </form>
-                                        </div>
-
-
+                                    </div>
                                         
-                                        <div class="d-grid mt-4">
-                                            <button type="submit" class="btn btn-split">
-                                                <i class="fas fa-calculator me-2"></i> Calculate Shares
-                                            </button>
-                                        </div>
-                                    </form>
-                                </div>
+                                    <div class="d-grid mt-4">
+                                        <button type="submit" class="btn btn-split btn-lg">
+                                            <i class="fas fa-calculator me-2"></i> Calculate Shares
+                                        </button>
+                                    </div>
+                                </form>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='javasplit.js') }}"></script>
+    
+    <script>
+        // Initialize people container when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            updatePeopleContainer();
+            
+            // Add event listener for people count changes
+            document.getElementById('peopleCount').addEventListener('change', updatePeopleContainer);
+            
+            // Add event listeners for item checkboxes
+            document.querySelectorAll('.item-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', function() {
+                    const itemIndex = this.getAttribute('data-item-index');
+                    const peopleCheckboxes = document.getElementById(`people-checkboxes-${itemIndex}`);
+                    
+                    if (this.checked) {
+                        peopleCheckboxes.style.display = 'block';
+                        updatePeopleCheckboxes(itemIndex);
+                    } else {
+                        peopleCheckboxes.style.display = 'none';
+                        // Uncheck all people checkboxes for this item
+                        peopleCheckboxes.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+                            cb.checked = false;
+                        });
+                    }
+                });
+            });
+        });
+
+        function updatePeopleContainer() {
+            const peopleCount = parseInt(document.getElementById('peopleCount').value);
+            const container = document.getElementById('peopleContainer');
+            
+            container.innerHTML = '';
+            
+            for (let i = 1; i <= peopleCount; i++) {
+                const personDiv = document.createElement('div');
+                personDiv.className = 'mb-3';
+                personDiv.innerHTML = `
+                    <label class="form-label">Person ${i} Name</label>
+                    <input type="text" class="form-control" name="person_${i}_name" 
+                           value="Person ${i}" placeholder="Enter name" required>
+                `;
+                container.appendChild(personDiv);
+            }
+            
+            // Update all visible people checkboxes
+            document.querySelectorAll('.item-checkbox:checked').forEach(checkbox => {
+                const itemIndex = checkbox.getAttribute('data-item-index');
+                updatePeopleCheckboxes(itemIndex);
+            });
+        }
+
+        function updatePeopleCheckboxes(itemIndex) {
+            const peopleCount = parseInt(document.getElementById('peopleCount').value);
+            const container = document.getElementById(`people-checkboxes-${itemIndex}`);
+            
+            if (!container) return;
+            
+            container.innerHTML = '<div class="small fw-medium mb-2">Assign to:</div>';
+            
+            for (let i = 1; i <= peopleCount; i++) {
+                const checkboxDiv = document.createElement('div');
+                checkboxDiv.className = 'form-check form-check-inline';
+                checkboxDiv.innerHTML = `
+                    <input class="form-check-input" type="checkbox" 
+                           name="person_${i}_item_${itemIndex}" id="person_${i}_item_${itemIndex}">
+                    <label class="form-check-label small" for="person_${i}_item_${itemIndex}">
+                        Person ${i}
+                    </label>
+                `;
+                container.appendChild(checkboxDiv);
+            }
+        }
+
+        // Form validation
+        document.getElementById('splitForm').addEventListener('submit', function(e) {
+            const totalInput = document.querySelector('input[name="total"]');
+            if (!totalInput.value || parseFloat(totalInput.value) <= 0) {
+                e.preventDefault();
+                alert('Please enter a valid total amount');
+                totalInput.focus();
+            }
+        });
+    </script>
 </body>
 </html>

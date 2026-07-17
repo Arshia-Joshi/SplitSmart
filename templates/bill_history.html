@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bill History - SplitEase</title>
+    <title>Your Bill History - SplitEase</title>
     <style>
         * {
             margin: 0;
@@ -38,6 +38,28 @@
         .header p {
             color: rgba(255, 255, 255, 0.9);
             font-size: 1.1rem;
+        }
+
+        .nav-buttons {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: 2px solid white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            text-decoration: none;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            display: inline-block;
+        }
+
+        .nav-btn:hover {
+            background: white;
+            color: #667eea;
         }
 
         .history-container {
@@ -192,31 +214,41 @@
             margin-top: 15px;
         }
 
-        .view-btn, .delete-btn {
+        .delete-btn {
             padding: 8px 16px;
             border: none;
             border-radius: 15px;
             cursor: pointer;
             font-size: 0.8rem;
             transition: background-color 0.2s;
-        }
-
-        .view-btn {
-            background: #e3f2fd;
-            color: #1976d2;
-        }
-
-        .view-btn:hover {
-            background: #bbdefb;
-        }
-
-        .delete-btn {
             background: #ffebee;
             color: #d32f2f;
         }
 
         .delete-btn:hover {
             background: #ffcdd2;
+        }
+
+        .flash-messages {
+            margin-bottom: 20px;
+        }
+
+        .flash-success {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .flash-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border: 1px solid #f5c6cb;
         }
 
         @media (max-width: 768px) {
@@ -239,14 +271,29 @@
             <p>All your split bills in one place</p>
         </div>
 
+        <div class="nav-buttons">
+            <a href="/dashboard" class="nav-btn">← Back to Dashboard</a>
+            <a href="/logout" class="nav-btn">Logout</a>
+        </div>
+
+        <!-- Flash Messages -->
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="flash-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
         <div class="history-container">
             <div class="history-header">
-                <h2>Split Bills</h2>
-                <a href="/" class="upload-btn">Upload New Bill</a>
+                <h2>Your Split Bills</h2>
+                <a href="/dashboard" class="upload-btn">Upload New Bill</a>
             </div>
 
             <div id="history-content">
-                <!-- Content will be loaded by JavaScript -->
                 <div class="loading-state">
                     <div class="spinner"></div>
                     <p>Loading your bill history...</p>
@@ -264,6 +311,8 @@
         function loadBillHistory() {
             const historyContent = document.getElementById('history-content');
             
+            console.log("🔄 Loading bill history...");
+            
             fetch('/api/bill-history')
                 .then(response => {
                     if (!response.ok) {
@@ -272,6 +321,8 @@
                     return response.json();
                 })
                 .then(data => {
+                    console.log("📦 Received data:", data);
+                    
                     if (data.error) {
                         showErrorState(data.error);
                     } else if (data.bills && data.bills.length > 0) {
@@ -281,7 +332,7 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading bill history:', error);
+                    console.error('❌ Error loading bill history:', error);
                     showErrorState('Failed to load bill history. Please try again.');
                 });
         }
@@ -297,14 +348,13 @@
                 billCard.className = 'bill-card';
                 
                 billCard.innerHTML = `
-                    <div class="bill-title">${escapeHtml(bill.filename || 'Unnamed Bill')}</div>
-                    <div class="bill-info">Participants: ${bill.participants || 0}</div>
-                    <div class="bill-info">Items: ${bill.items || 0}</div>
-                    <div class="bill-amount">$${parseFloat(bill.total_amount || 0).toFixed(2)}</div>
-                    <div class="bill-date">Created: ${new Date(bill.created_at).toLocaleDateString()}</div>
+                    <div class="bill-title">${escapeHtml(bill.filename)}</div>
+                    <div class="bill-info">Participants: ${bill.participants}</div>
+                    <div class="bill-info">Items: ${bill.items}</div>
+                    <div class="bill-amount">₹${bill.total_amount.toFixed(2)}</div>
+                    <div class="bill-date">Created: ${bill.created_at}</div>
                     <div class="action-buttons">
-                        <button class="view-btn" onclick="viewBillDetails('${bill.id}')">View Details</button>
-                        <button class="delete-btn" onclick="deleteBill('${bill.id}')">Delete</button>
+                        <button class="delete-btn" onclick="deleteBill('${bill.id}')">Delete Bill</button>
                     </div>
                 `;
                 
@@ -313,6 +363,8 @@
             
             historyContent.innerHTML = '';
             historyContent.appendChild(billsGrid);
+            
+            console.log(`✅ Displayed ${bills.length} bills`);
         }
 
         function showEmptyState() {
@@ -321,9 +373,10 @@
                 <div class="empty-state">
                     <h3>No Bill History Yet</h3>
                     <p>Start by uploading and splitting your first bill!</p>
-                    <a href="/" class="upload-btn">Upload Your First Bill</a>
+                    <a href="/dashboard" class="upload-btn">Upload Your First Bill</a>
                 </div>
             `;
+            console.log("ℹ️ No bills found, showing empty state");
         }
 
         function showErrorState(message) {
@@ -337,10 +390,6 @@
             `;
         }
 
-        function viewBillDetails(billId) {
-            window.location.href = `/bill-details/${billId}`;
-        }
-
         function deleteBill(billId) {
             if (confirm('Are you sure you want to delete this bill?')) {
                 fetch(`/api/delete-bill/${billId}`, {
@@ -349,6 +398,7 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
+                        alert('Bill deleted successfully!');
                         loadBillHistory(); // Reload the history
                     } else {
                         alert('Failed to delete bill: ' + (data.error || 'Unknown error'));
