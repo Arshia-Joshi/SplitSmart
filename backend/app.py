@@ -147,11 +147,14 @@ def register_routes(app):
         if file.mimetype not in ALLOWED_TYPES:
             return error("Use a JPG, PNG or WEBP image")
 
+        if not os.getenv("GEMINI_API_KEY"):
+            return error("Bill scanning isn't set up: GEMINI_API_KEY is missing on the server.", 503)
+
         from .ocr import read_bill  # imported here so the app still runs without Gemini
         try:
             return jsonify(read_bill(file.read(), file.mimetype))
         except Exception as e:
-            print(f"Scan failed: {e}")
+            print(f"Scan failed: {e}", flush=True)
             return error("Couldn't read this bill. Try a clearer photo or enter it manually.", 502)
 
     def split_from_request(data):
