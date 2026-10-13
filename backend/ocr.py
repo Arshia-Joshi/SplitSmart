@@ -20,6 +20,7 @@ Rules:
 - Do not put weights or pack sizes (like 200 g, 0.5 KG) in price.
 - "charges" are amounts ADDED on top of the items to reach the total: CGST, SGST, GST, VAT,
   service charge, packing charge, round off (round off can be negative).
+  Keep charge names short, like "CGST 2.5%" or "Service charge 10%" (no GSTIN numbers).
 - If taxes are already included in the item prices (only shown as a "GST break up"),
   do NOT list them in charges.
 - "discount" is a positive number taken off the bill, 0 if none.
@@ -85,13 +86,16 @@ def read_bill(image_bytes, mime_type):
     if not api_key:
         raise RuntimeError("GEMINI_API_KEY is not set")
 
-    client = genai.Client(api_key=api_key)
+    # timeout in ms, so a slow Gemini call fails instead of hanging the request
+    client = genai.Client(api_key=api_key, http_options=types.HttpOptions(timeout=45000))
     response = client.models.generate_content(
         model=os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         contents=[types.Part.from_bytes(data=image_bytes, mime_type=mime_type), PROMPT],
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
             temperature=0,
+            # reading a bill doesn't need "thinking"; turning it off makes scans much faster
+            thinking_config=types.ThinkingConfig(thinking_budget=0),
         ),
     )
     try:
