@@ -19,6 +19,9 @@ The logic is in `backend/split.py` and covered by `tests/`.
 ## Run locally
 
 ```bash
+# database: local Postgres in Docker on port 5433 (set POSTGRES_PASSWORD and DATABASE_URL in .env first)
+docker compose up -d
+
 # backend
 python -m venv .venv
 .venv\Scripts\activate          # Windows (Mac/Linux: source .venv/bin/activate)
@@ -32,7 +35,8 @@ npm install
 npm run dev                     # http://localhost:5173 (proxies /api to :5000)
 ```
 
-Run the tests with `pytest`.
+Run the tests with `pytest` (uses SQLite). To run them on Postgres, create a `splitsmart_test`
+database and set `TEST_DATABASE_URL` to it. Its tables are wiped on every run.
 
 ## Deploy to Vercel
 

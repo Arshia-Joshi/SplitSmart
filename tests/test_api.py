@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from backend.app import create_app
@@ -6,10 +8,16 @@ from backend.models import db
 
 @pytest.fixture
 def client(tmp_path):
-    app = create_app({"SQLALCHEMY_DATABASE_URI": f"sqlite:///{tmp_path / 'test.db'}", "TESTING": True})
+    # Set TEST_DATABASE_URL to run these tests against Postgres (tables are wiped)
+    url = os.getenv("TEST_DATABASE_URL") or f"sqlite:///{tmp_path / 'test.db'}"
+    app = create_app({"SQLALCHEMY_DATABASE_URI": url, "TESTING": True})
     with app.app_context():
+        db.drop_all()
         db.create_all()
-    return app.test_client()
+    yield app.test_client()
+    with app.app_context():
+        db.session.remove()
+        db.drop_all()
 
 
 def signup(client, name="asha"):
