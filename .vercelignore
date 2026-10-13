@@ -1,0 +1,5 @@
+data/
+tests/
+ocr_prep.ipynb
+.venv/
+frontend/node_modules/
